@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <meta name="theme-color" content="#1a56db"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Prestação"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icon-192.png"/>
+  <title>Prestação de Contas</title>
+  <style>
+    :root {
+      --blue: #1a56db; --blue-dark: #1245b5; --blue-light: #e8f0fe;
+      --green: #057a55; --green-light: #def7ec;
+      --red: #c81e1e; --red-light: #fde8e8;
+      --yellow: #723b13; --yellow-light: #fdf6b2;
+      --gray: #374151; --gray-light: #f9fafb; --gray-mid: #e5e7eb;
+      --text: #111827; --text-secondary: #6b7280;
+      --white: #ffffff; --border: #e5e7eb;
+      --radius: 10px; --radius-sm: 6px;
+      --shadow: 0 1px 3px rgba(0,0,0,.1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f3f4f6; color: var(--text); font-size: 14px; }
+
+    /* ── TOP BAR ── */
+    .topbar { background: var(--blue); color: #fff; padding: 14px 16px 10px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+    .topbar h1 { font-size: 16px; font-weight: 600; }
+    .topbar-sub { font-size: 11px; opacity: .8; margin-top: 1px; }
+    .sync-indicator { display: flex; align-items: center; gap: 5px; font-size: 11px; }
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
+    .sync-dot.off { background: #fbbf24; }
+
+    /* ── TABS ── */
+    .tabs { display: flex; background: var(--white); border-bottom: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { flex: 1; min-width: 80px; padding: 12px 8px; text-align: center; font-size: 12px; font-weight: 500; color: var(--text-secondary); border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; background: none; border-top: none; border-left: none; border-right: none; }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    /* ── PANELS ── */
+    .panel { display: none; padding: 12px; padding-bottom: 90px; }
+    .panel.active { display: block; }
+
+    /* ── CARDS / METRICS ── */
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .metric { background: var(--white); border-radius: var(--radius-sm); padding: 10px 12px; box-shadow: var(--shadow); }
+    .metric-label { font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; }
+    .metric-value { font-size: 20px; font-weight: 600; color: var(--text); }
+    .mv-green { color: var(--green); }
+    .mv-red { color: var(--red); }
+    .mv-yellow { color: var(--yellow); }
+    .mv-gray { color: var(--text-secondary); }
+
+    /* ── ALERTS ── */
+    .alertbox { border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 8px; font-size: 12px; display: flex; align-items: flex-start; gap: 8px; }
+    .alertbox.danger { background: var(--red-light); color: var(--red); }
+    .alertbox.warning { background: var(--yellow-light); color: var(--yellow); }
+    .alertbox-icon { font-size: 14px; margin-top: 1px; flex-shrink: 0; }
+
+    /* ── FILTERS ── */
+    .filters { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; margin-bottom: 10px; }
+    .filters::-webkit-scrollbar { display: none; }
+    .filter-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--white); color: var(--text-secondary); font-size: 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .filter-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+    /* ── PAYMENT CARDS ── */
+    .pay-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 10px; overflow: hidden; }
+    .pay-card.cancelado { opacity: .6; }
+    .pay-card-header { padding: 12px 14px 8px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .pay-card-title { font-size: 14px; font-weight: 600; color: var(--text); flex: 1; }
+    .pay-card-title.cancelado { text-decoration: line-through; }
+    .pay-card-meta { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 10px; }
+    .meta-row { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
+    .meta-row strong { color: var(--text); }
+    .pay-card-footer { border-top: 1px solid var(--border); padding: 8px 10px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+    .prazo-tag { font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 20px; }
+    .prazo-ok { background: var(--green-light); color: var(--green); }
+    .prazo-warn { background: var(--yellow-light); color: var(--yellow); }
+    .prazo-over { background: var(--red-light); color: var(--red); }
+    .actions { display: flex; gap: 5px; flex-wrap: wrap; }
+
+    /* ── BADGES ── */
+    .badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+    .badge-pendente { background: var(--yellow-light); color: var(--yellow); }
+    .badge-atrasado { background: var(--red-light); color: var(--red); }
+    .badge-entregue { background: var(--green-light); color: var(--green); }
+    .badge-cancelado { background: var(--gray-mid); color: var(--text-secondary); }
+    .badge-editado { background: var(--blue-light); color: var(--blue-dark); }
+
+    /* ── BUTTONS ── */
+    button { cursor: pointer; font-family: inherit; }
+    .btn { padding: 7px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--white); color: var(--text); font-size: 12px; font-weight: 500; }
+    .btn:active { opacity: .8; }
+    .btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .btn-success { background: var(--green); color: #fff; border-color: var(--green); }
+    .btn-danger { background: var(--red); color: #fff; border-color: var(--red); }
+    .btn-ghost { background: transparent; border-color: var(--border); color: var(--text-secondary); padding: 6px 10px; }
+    .btn-lg { width: 100%; padding: 14px; font-size: 15px; border-radius: var(--radius); }
+    .btn-fab { position: fixed; bottom: 24px; right: 16px; width: 56px; height: 56px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 26px; border: none; box-shadow: 0 4px 12px rgba(26,86,219,.4); display: flex; align-items: center; justify-content: center; z-index: 40; }
+
+    /* ── FORMS ── */
+    .form-group { margin-bottom: 14px; }
+    .form-label { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 5px; display: block; }
+    .form-control { width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; color: var(--text); background: var(--white); appearance: none; -webkit-appearance: none; }
+    .form-control:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,86,219,.12); }
+    .form-hint { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+    .form-hint.warn { color: var(--yellow); font-weight: 500; }
+    .form-hint.danger { color: var(--red); font-weight: 500; }
+    .form-hint.ok { color: var(--green); font-weight: 500; }
+
+    /* ── DRAWER / MODAL ── */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 60; display: none; }
+    .overlay.open { display: block; }
+    .drawer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--white); border-radius: 16px 16px 0 0; z-index: 70; transform: translateY(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); max-height: 92vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .drawer.open { transform: translateY(0); }
+    .drawer-handle { width: 36px; height: 4px; background: var(--gray-mid); border-radius: 2px; margin: 10px auto 4px; }
+    .drawer-header { padding: 6px 16px 14px; border-bottom: 1px solid var(--border); }
+    .drawer-title { font-size: 16px; font-weight: 600; }
+    .drawer-sub { font-size: 12px; color: var(--text-secondary); margin-top: 3px; }
+    .drawer-body { padding: 16px; }
+    .drawer-footer { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+    .drawer-footer button { flex: 1; }
+
+    /* ── HISTORY ── */
+    .hist-item { padding: 10px 12px; border-left: 3px solid var(--border); margin-bottom: 8px; background: var(--white); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; box-shadow: var(--shadow); }
+    .hist-item.criado { border-color: var(--green); }
+    .hist-item.edit { border-color: var(--blue); }
+    .hist-item.entregue { border-color: var(--green); }
+    .hist-item.cancelado { border-color: var(--red); }
+    .hist-tipo { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-secondary); }
+    .hist-desc { font-size: 12px; color: var(--text); margin-top: 2px; }
+    .hist-snap { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+    .hist-time { font-size: 10px; color: var(--text-secondary); margin-top: 3px; }
+
+    /* ── REL CARDS ── */
+    .rel-section { margin-bottom: 18px; }
+    .rel-section-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; text-transform: capitalize; }
+    .rel-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+    .rel-card { background: var(--white); border-radius: var(--radius-sm); padding: 10px 12px; box-shadow: var(--shadow); }
+    .rel-card-label { font-size: 10px; color: var(--text-secondary); }
+    .rel-card-val { font-size: 17px; font-weight: 600; color: var(--text); margin-top: 1px; }
+
+    /* ── LOADING / EMPTY ── */
+    .loading { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 13px; }
+    .empty { text-align: center; padding: 40px 20px; }
+    .empty-icon { font-size: 32px; margin-bottom: 8px; }
+    .empty-text { font-size: 13px; color: var(--text-secondary); }
+
+    /* ── LIMIT BAR ── */
+    .limit-bar { padding: 9px 12px; border-radius: var(--radius-sm); margin-bottom: 12px; font-size: 12px; font-weight: 500; }
+    .limit-bar.ok { background: var(--green-light); color: var(--green); }
+    .limit-bar.warn { background: var(--yellow-light); color: var(--yellow); }
+    .limit-bar.over { background: var(--red-light); color: var(--red); }
+
+    .section-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .section-title { font-size: 13px; font-weight: 600; color: var(--text); }
+
+    @media (min-width: 640px) {
+      .panel { max-width: 640px; margin: 0 auto; }
+      .drawer { max-width: 480px; left: 50%; transform: translateX(-50%) translateY(100%); right: auto; width: 100%; }
+      .drawer.open { transform: translateX(-50%) translateY(0); }
+      .btn-fab { right: calc(50% - 300px); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar h1" style="font-size:15px;font-weight:600;">Prestação de Contas</div>
+    <div class="topbar-sub">Cartão corporativo · Prazo máx. 48h</div>
+  </div>
+  <div class="sync-indicator">
+    <div class="sync-dot" id="sync-dot"></div>
+    <span id="sync-label">–</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('pagamentos',this)">Pagamentos</button>
+  <button class="tab" onclick="switchTab('historico',this)">Histórico</button>
+  <button class="tab" onclick="switchTab('relatorio',this)">Relatório</button>
+</div>
+
+<!-- PAGAMENTOS -->
+<div id="panel-pagamentos" class="panel active">
+  <div id="alert-area"></div>
+  <div class="metrics" id="metrics"></div>
+  <div class="filters" id="filters">
+    <button class="filter-btn active" data-f="ativos" onclick="setFilter('ativos',this)">Ativos</button>
+    <button class="filter-btn" data-f="pendente" onclick="setFilter('pendente',this)">Pendentes</button>
+    <button class="filter-btn" data-f="atrasado" onclick="setFilter('atrasado',this)">Atrasados</button>
+    <button class="filter-btn" data-f="entregue" onclick="setFilter('entregue',this)">Entregues</button>
+    <button class="filter-btn" data-f="cancelado" onclick="setFilter('cancelado',this)">Cancelados</button>
+    <button class="filter-btn" data-f="todos" onclick="setFilter('todos',this)">Todos</button>
+  </div>
+  <div id="pay-list"><div class="loading">Carregando...</div></div>
+</div>
+
+<!-- HISTÓRICO -->
+<div id="panel-historico" class="panel">
+  <div class="section-row">
+    <div class="section-title">Todas as alterações</div>
+  </div>
+  <div id="hist-list"><div class="loading">Carregando...</div></div>
+</div>
+
+<!-- RELATÓRIO -->
+<div id="panel-relatorio" class="panel">
+  <div id="rel-content"><div class="loading">Carregando...</div></div>
+</div>
+
+<!-- FAB -->
+<button class="btn-fab" onclick="openDrawer('drawer-new')" aria-label="Novo pagamento">+</button>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay" onclick="closeAllDrawers()"></div>
+
+<!-- DRAWER: NOVO PAGAMENTO -->
+<div class="drawer" id="drawer-new">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Novo pagamento</div>
+    <div class="drawer-sub">O prazo de 48h conta a partir da data do pagamento</div>
+  </div>
+  <div class="drawer-body">
+    <div class="form-group">
+      <label class="form-label">Descrição *</label>
+      <input class="form-control" id="n-desc" type="text" placeholder="Ex: Compra de material de escritório"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Fornecedor *</label>
+      <input class="form-control" id="n-forn" type="text" placeholder="Nome do fornecedor"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Valor (R$) *</label>
+      <input class="form-control" id="n-val" type="number" placeholder="0,00" min="0" step="0.01" inputmode="decimal"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Responsável *</label>
+      <input class="form-control" id="n-resp" type="text" placeholder="Seu nome"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data do pagamento *</label>
+      <input class="form-control" id="n-data" type="date" onchange="updateNewPrazo()"/>
+      <div class="form-hint warn" id="n-prazo-hint"></div>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" onclick="closeAllDrawers()">Cancelar</button>
+    <button class="btn btn-primary" onclick="addPayment()">Salvar pagamento</button>
+  </div>
+</div>
+
+<!-- DRAWER: ENTREGA -->
+<div class="drawer" id="drawer-entrega">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Registrar entrega ao financeiro</div>
+    <div class="drawer-sub" id="ent-sub"></div>
+  </div>
+  <div class="drawer-body">
+    <div class="limit-bar" id="ent-limit"></div>
+    <div class="form-group">
+      <label class="form-label">Setor que recebeu *</label>
+      <input class="form-control" id="ent-setor" type="text" placeholder="Ex: Financeiro, Contabilidade"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Pessoa que recebeu *</label>
+      <input class="form-control" id="ent-pessoa" type="text" placeholder="Nome completo"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data da entrega *</label>
+      <input class="form-control" id="ent-data" type="date" onchange="checkEntDentro48()"/>
+      <div class="form-hint" id="ent-48warn"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Observação</label>
+      <input class="form-control" id="ent-obs" type="text" placeholder="Ex: Nota fiscal entregue junto"/>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" onclick="closeAllDrawers()">Cancelar</button>
+    <button class="btn btn-success" onclick="confirmEntrega()">Confirmar entrega</button>
+  </div>
+</div>
+
+<!-- DRAWER: EDITAR -->
+<div class="drawer" id="drawer-edit">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Editar pagamento</div>
+    <div class="drawer-sub" id="edit-sub"></div>
+  </div>
+  <div class="drawer-body">
+    <div class="form-group">
+      <label class="form-label">Descrição</label>
+      <input class="form-control" id="edit-desc" type="text"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Fornecedor</label>
+      <input class="form-control" id="edit-forn" type="text"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Valor (R$)</label>
+      <input class="form-control" id="edit-val" type="number" min="0" step="0.01" inputmode="decimal"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Responsável</label>
+      <input class="form-control" id="edit-resp" type="text"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data do pagamento</label>
+      <input class="form-control" id="edit-data" type="date"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Motivo da edição *</label>
+      <input class="form-control" id="edit-razao" type="text" placeholder="Ex: Valor incorreto, fornecedor errado..."/>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" onclick="closeAllDrawers()">Cancelar</button>
+    <button class="btn btn-primary" onclick="confirmEdit()">Salvar edição</button>
+  </div>
+</div>
+
+<!-- DRAWER: CANCELAR -->
+<div class="drawer" id="drawer-cancel">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Cancelar registro</div>
+    <div class="drawer-sub" id="cancel-sub"></div>
+  </div>
+  <div class="drawer-body">
+    <div class="alertbox danger">
+      <span class="alertbox-icon">⚠️</span>
+      <span>O registro <strong>não será apagado</strong>. Ficará marcado como cancelado no histórico para auditoria completa.</span>
+    </div>
+    <div class="form-group" style="margin-top:14px;">
+      <label class="form-label">Motivo do cancelamento *</label>
+      <input class="form-control" id="cancel-razao" type="text" placeholder="Ex: Pagamento duplicado, erro de cadastro..."/>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" onclick="closeAllDrawers()">Voltar</button>
+    <button class="btn btn-danger" onclick="confirmCancel()">Confirmar cancelamento</button>
+  </div>
+</div>
+
+<!-- DRAWER: HISTÓRICO DO ITEM -->
+<div class="drawer" id="drawer-hist-item">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Histórico do registro</div>
+    <div class="drawer-sub" id="hist-item-sub"></div>
+  </div>
+  <div class="drawer-body" id="hist-item-body"></div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" style="flex:1" onclick="closeAllDrawers()">Fechar</button>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ─── FIREBASE CONFIG — substitua com os seus dados ───
+  const firebaseConfig = {
+    apiKey: "AIzaSyCnjWxsT7WXDrdy0D6tghBGLK_6cVM09nM",
+    authDomain: "controle-de-pagamento-17df9.firebaseapp.com",
+    databaseURL: "https://controle-de-pagamento-17df9-default-rtdb.firebaseio.com",
+    projectId: "controle-de-pagamento-17df9",
+    storageBucket: "controle-de-pagamento-17df9.firebasestorage.app",
+    messagingSenderId: "637916614200",
+    appId: "1:637916614200:web:9ddb019a280e3ffcf460cd"
+  };
+  // ─────────────────────────────────────────────────────
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const dataRef = ref(db, 'prestacao');
+
+  window._fbSave = async (data) => {
+    await set(dataRef, data);
+  };
+
+  onValue(dataRef, (snapshot) => {
+    const val = snapshot.val();
+    if (val) {
+      window._payments = val.payments || [];
+      window._nextId = val.nextId || 1;
+    } else {
+      window._payments = window._payments || [];
+      window._nextId = window._nextId || 1;
+    }
+    setSyncState(true);
+    render();
+    renderHist();
+    renderRel();
+  }, (error) => {
+    console.error(error);
+    setSyncState(false);
+  });
+</script>
+
+<script>
+  // ── STATE ──
+  window._payments = window._payments || [];
+  window._nextId = window._nextId || 1;
+  let currentFilter = 'ativos';
+  let pendingId = null;
+  let activeDrawer = null;
+
+  // ── UTILS ──
+  function parseD(s) { return new Date(s + 'T00:00:00'); }
+  function fmtD(s) { return parseD(s).toLocaleDateString('pt-BR'); }
+  function fmtDT(iso) { return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+  function fmtM(v) { return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function todayISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+  function prazo48ISO(d) { const dt = parseD(d); dt.setDate(dt.getDate() + 2); return dt.toISOString().split('T')[0]; }
+  function horasRest(d) { const lim = parseD(prazo48ISO(d)); return Math.round((lim - new Date()) / 3600000); }
+
+  function getStatus(p) {
+    if (p.status === 'entregue' || p.status === 'cancelado') return p.status;
+    return horasRest(p.data) < 0 ? 'atrasado' : 'pendente';
+  }
+
+  async function save() {
+    if (window._fbSave) {
+      await window._fbSave({ payments: window._payments, nextId: window._nextId });
+    }
+  }
+
+  function setSyncState(ok) {
+    document.getElementById('sync-dot').className = 'sync-dot' + (ok ? '' : ' off');
+    document.getElementById('sync-label').textContent = ok ? 'Online' : 'Sem conexão';
+  }
+
+  // ── DRAWER ──
+  function openDrawer(id) {
+    closeAllDrawers();
+    document.getElementById('overlay').classList.add('open');
+    document.getElementById(id).classList.add('open');
+    activeDrawer = id;
+    document.body.style.overflow = 'hidden';
+  }
+  function closeAllDrawers() {
+    document.querySelectorAll('.drawer').forEach(d => d.classList.remove('open'));
+    document.getElementById('overlay').classList.remove('open');
+    activeDrawer = null;
+    pendingId = null;
+    document.body.style.overflow = '';
+  }
+
+  // ── TABS ──
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + name).classList.add('active');
+  }
+
+  // ── FILTERS ──
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+    render();
+  }
+
+  // ── NEW PAYMENT ──
+  function updateNewPrazo() {
+    const d = document.getElementById('n-data').value;
+    const hint = document.getElementById('n-prazo-hint');
+    if (!d) { hint.textContent = ''; return; }
+    hint.textContent = `⏱ Prazo máximo para entrega: ${fmtD(prazo48ISO(d))}`;
+  }
+
+  async function addPayment() {
+    const desc = document.getElementById('n-desc').value.trim();
+    const forn = document.getElementById('n-forn').value.trim();
+    const val = parseFloat(document.getElementById('n-val').value);
+    const resp = document.getElementById('n-resp').value.trim();
+    const data = document.getElementById('n-data').value;
+    if (!desc || !forn || isNaN(val) || !resp || !data) { alert('Preencha todos os campos obrigatórios.'); return; }
+    const now = new Date().toISOString();
+    window._payments.unshift({
+      id: window._nextId++, data, desc, forn, valor: val, resp, status: 'pendente', entregue: null,
+      historico: [{ tipo: 'criado', quando: now, razao: '', snapshot: { desc, forn, valor: val, resp, data } }]
+    });
+    ['n-desc','n-forn','n-val','n-resp','n-data'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('n-prazo-hint').textContent = '';
+    closeAllDrawers();
+    await save();
+  }
+
+  // ── ENTREGA ──
+  function openEntrega(id) {
+    pendingId = id;
+    const p = window._payments.find(x => x.id === id);
+    document.getElementById('ent-sub').textContent = `${p.desc} — ${fmtM(p.valor)}`;
+    const h = horasRest(p.data);
+    const lim = document.getElementById('ent-limit');
+    if (h < 0) { lim.className = 'limit-bar over'; lim.textContent = `⚠️ Prazo vencido há ${Math.abs(h)}h — limite era ${fmtD(prazo48ISO(p.data))}`; }
+    else if (h <= 12) { lim.className = 'limit-bar warn'; lim.textContent = `⏱ Urgente! ${h}h restantes — limite: ${fmtD(prazo48ISO(p.data))}`; }
+    else { lim.className = 'limit-bar ok'; lim.textContent = `✓ Dentro do prazo — ${h}h restantes — limite: ${fmtD(prazo48ISO(p.data))}`; }
+    ['ent-setor','ent-pessoa','ent-obs'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('ent-data').value = todayISO();
+    document.getElementById('ent-48warn').textContent = '';
+    document.getElementById('ent-48warn').className = 'form-hint';
+    openDrawer('drawer-entrega');
+  }
+
+  function checkEntDentro48() {
+    const p = window._payments.find(x => x.id === pendingId);
+    if (!p) return;
+    const de = document.getElementById('ent-data').value;
+    const hint = document.getElementById('ent-48warn');
+    if (parseD(de) > parseD(prazo48ISO(p.data))) {
+      hint.textContent = '⚠️ Data posterior a 48h — será registrado como entregue FORA DO PRAZO.';
+      hint.className = 'form-hint danger';
+    } else {
+      hint.textContent = '✓ Dentro do prazo de 48h.';
+      hint.className = 'form-hint ok';
+    }
+  }
+
+  async function confirmEntrega() {
+    const setor = document.getElementById('ent-setor').value.trim();
+    const pessoa = document.getElementById('ent-pessoa').value.trim();
+    const de = document.getElementById('ent-data').value;
+    if (!setor || !pessoa || !de) { alert('Preencha setor, pessoa e data.'); return; }
+    const obs = document.getElementById('ent-obs').value.trim();
+    const p = window._payments.find(x => x.id === pendingId);
+    if (p) {
+      const dentroD = parseD(de) <= parseD(prazo48ISO(p.data));
+      p.status = 'entregue';
+      p.entregue = { setor, pessoa, dataEntrega: de, obs, dentroD };
+      p.historico.push({ tipo: 'entregue', quando: new Date().toISOString(), razao: `Entregue a ${pessoa} / ${setor}`, snapshot: null });
+    }
+    closeAllDrawers();
+    await save();
+  }
+
+  // ── EDITAR ──
+  function openEdit(id) {
+    pendingId = id;
+    const p = window._payments.find(x => x.id === id);
+    document.getElementById('edit-sub').textContent = `#${p.id} — ${fmtD(p.data)}`;
+    document.getElementById('edit-desc').value = p.desc;
+    document.getElementById('edit-forn').value = p.forn;
+    document.getElementById('edit-val').value = p.valor;
+    document.getElementById('edit-resp').value = p.resp;
+    document.getElementById('edit-data').value = p.data;
+    document.getElementById('edit-razao').value = '';
+    openDrawer('drawer-edit');
+  }
+
+  async function confirmEdit() {
+    const razao = document.getElementById('edit-razao').value.trim();
+    if (!razao) { alert('Informe o motivo da edição.'); return; }
+    const p = window._payments.find(x => x.id === pendingId);
+    if (p) {
+      const snap = { desc: p.desc, forn: p.forn, valor: p.valor, resp: p.resp, data: p.data };
+      p.desc = document.getElementById('edit-desc').value.trim() || p.desc;
+      p.forn = document.getElementById('edit-forn').value.trim() || p.forn;
+      p.valor = parseFloat(document.getElementById('edit-val').value) || p.valor;
+      p.resp = document.getElementById('edit-resp').value.trim() || p.resp;
+      p.data = document.getElementById('edit-data').value || p.data;
+      p.historico.push({ tipo: 'edit', quando: new Date().toISOString(), razao, snapshot: snap });
+    }
+    closeAllDrawers();
+    await save();
+  }
+
+  // ── CANCELAR ──
+  function openCancel(id) {
+    pendingId = id;
+    const p = window._payments.find(x => x.id === id);
+    document.getElementById('cancel-sub').textContent = `#${p.id} — ${p.desc} — ${fmtM(p.valor)}`;
+    document.getElementById('cancel-razao').value = '';
+    openDrawer('drawer-cancel');
+  }
+
+  async function confirmCancel() {
+    const razao = document.getElementById('cancel-razao').value.trim();
+    if (!razao) { alert('Informe o motivo do cancelamento.'); return; }
+    const p = window._payments.find(x => x.id === pendingId);
+    if (p) {
+      p.status = 'cancelado';
+      p.historico.push({ tipo: 'cancelado', quando: new Date().toISOString(), razao, snapshot: null });
+    }
+    closeAllDrawers();
+    await save();
+  }
+
+  // ── HISTÓRICO DO ITEM ──
+  function openHistItem(id) {
+    const p = window._payments.find(x => x.id === id);
+    document.getElementById('hist-item-sub').textContent = `#${p.id} — ${p.desc}`;
+    const tipoLabel = { criado: 'Criado', edit: 'Editado', entregue: 'Entregue ao financeiro', cancelado: 'Cancelado' };
+    const evts = [...p.historico].reverse();
+    document.getElementById('hist-item-body').innerHTML = evts.map(h => `
+      <div class="hist-item ${h.tipo}">
+        <div class="hist-tipo">${tipoLabel[h.tipo] || h.tipo}</div>
+        ${h.razao ? `<div class="hist-desc">${h.razao}</div>` : ''}
+        ${h.snapshot ? `<div class="hist-snap">${h.snapshot.desc} · ${h.snapshot.forn} · ${fmtM(h.snapshot.valor)} · ${h.snapshot.resp}</div>` : ''}
+        <div class="hist-time">${fmtDT(h.quando)}</div>
+      </div>`).join('');
+    openDrawer('drawer-hist-item');
+  }
+
+  // ── RENDER PAYMENTS ──
+  function render() {
+    const payments = window._payments || [];
+    const filtered = payments.filter(p => {
+      const s = getStatus(p);
+      if (currentFilter === 'ativos') return s !== 'cancelado';
+      if (currentFilter === 'todos') return true;
+      return s === currentFilter;
+    });
+
+    // metrics
+    const ativos = payments.filter(p => getStatus(p) !== 'cancelado');
+    const ent = ativos.filter(p => getStatus(p) === 'entregue').length;
+    const atr = ativos.filter(p => getStatus(p) === 'atrasado').length;
+    const pend = ativos.filter(p => getStatus(p) === 'pendente').length;
+    const can = payments.filter(p => getStatus(p) === 'cancelado').length;
+    const urg = ativos.filter(p => { const h = horasRest(p.data); return getStatus(p) === 'pendente' && h >= 0 && h <= 24; }).length;
+    const valPend = ativos.filter(p => getStatus(p) !== 'entregue').reduce((a, p) => a + Number(p.valor), 0);
+
+    document.getElementById('metrics').innerHTML = `
+      <div class="metric"><div class="metric-label">Entregues</div><div class="metric-value mv-green">${ent}</div></div>
+      <div class="metric"><div class="metric-label">Pendentes</div><div class="metric-value mv-yellow">${pend}</div></div>
+      <div class="metric"><div class="metric-label">Atrasados</div><div class="metric-value mv-red">${atr}</div></div>
+      <div class="metric"><div class="metric-label">Urgentes</div><div class="metric-value ${urg > 0 ? 'mv-yellow' : ''}">${urg}</div></div>
+      <div class="metric"><div class="metric-label">A prestar</div><div class="metric-value" style="font-size:13px;">${fmtM(valPend)}</div></div>
+      <div class="metric"><div class="metric-label">Cancelados</div><div class="metric-value mv-gray">${can}</div></div>
+    `;
+
+    // alerts
+    let alerts = '';
+    if (atr > 0) alerts += `<div class="alertbox danger"><span class="alertbox-icon">⚠️</span><span>${atr} pagamento${atr > 1 ? 's' : ''} passaram de 48h sem prestação de contas.</span></div>`;
+    if (urg > 0) alerts += `<div class="alertbox warning"><span class="alertbox-icon">⏱</span><span>${urg} pagamento${urg > 1 ? 's' : ''} vencem nas próximas 24h — aja agora.</span></div>`;
+    document.getElementById('alert-area').innerHTML = alerts;
+
+    // list
+    if (!filtered.length) {
+      document.getElementById('pay-list').innerHTML = `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhum registro encontrado</div></div>`;
+      return;
+    }
+
+    document.getElementById('pay-list').innerHTML = filtered.map(p => {
+      const s = getStatus(p);
+      const isCan = s === 'cancelado';
+      const isEnt = s === 'entregue';
+      const hasEdit = p.historico.some(h => h.tipo === 'edit');
+
+      // prazo tag
+      let prazoTag = '';
+      if (!isCan && !isEnt) {
+        const h = horasRest(p.data);
+        if (h < 0) prazoTag = `<span class="prazo-tag prazo-over">Atrasado ${Math.abs(h)}h</span>`;
+        else if (h <= 6) prazoTag = `<span class="prazo-tag prazo-over">⚠️ ${h}h restantes</span>`;
+        else if (h <= 24) prazoTag = `<span class="prazo-tag prazo-warn">⏱ ${h}h restantes</span>`;
+        else prazoTag = `<span class="prazo-tag prazo-ok">Prazo: ${fmtD(prazo48ISO(p.data))}</span>`;
+      }
+
+      // badge
+      const badgeMap = { pendente: 'badge-pendente', atrasado: 'badge-atrasado', entregue: 'badge-entregue', cancelado: 'badge-cancelado' };
+      const labelMap = { pendente: 'Pendente', atrasado: 'Atrasado', entregue: 'Entregue', cancelado: 'Cancelado' };
+      let badges = `<span class="badge ${badgeMap[s]}">${labelMap[s]}</span>`;
+      if (hasEdit) badges += ` <span class="badge badge-editado">editado</span>`;
+
+      // entregue info
+      let entInfo = '';
+      if (isEnt && p.entregue) {
+        const e = p.entregue;
+        const prazoLabel = e.dentroD ? '<span style="color:#057a55;font-size:11px;">✓ No prazo</span>' : '<span style="color:#c81e1e;font-size:11px;">⚠️ Fora do prazo</span>';
+        entInfo = `<div class="meta-row">👤 <strong>${e.pessoa}</strong> · ${e.setor} · ${fmtD(e.dataEntrega)} · ${prazoLabel}</div>`;
+      }
+
+      // actions
+      let acts = '';
+      if (!isCan && !isEnt) acts += `<button class="btn btn-success" onclick="openEntrega(${p.id})">Entregue</button>`;
+      if (!isCan) acts += `<button class="btn" onclick="openEdit(${p.id})">Editar</button>`;
+      if (!isCan) acts += `<button class="btn btn-ghost" onclick="openCancel(${p.id})">Cancelar</button>`;
+      acts += `<button class="btn btn-ghost" onclick="openHistItem(${p.id})">Histórico</button>`;
+
+      return `
+        <div class="pay-card ${isCan ? 'cancelado' : ''}">
+          <div class="pay-card-header">
+            <div class="pay-card-title ${isCan ? 'cancelado' : ''}">${p.desc}</div>
+            <div>${badges}</div>
+          </div>
+          <div class="pay-card-meta">
+            <div class="meta-row">📅 <strong>${fmtD(p.data)}</strong></div>
+            <div class="meta-row">🏪 ${p.forn}</div>
+            <div class="meta-row">💰 <strong>${fmtM(p.valor)}</strong></div>
+            <div class="meta-row">👤 ${p.resp}</div>
+            ${entInfo}
+          </div>
+          <div class="pay-card-footer">
+            ${prazoTag}
+            <div class="actions">${acts}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── RENDER HISTÓRICO ──
+  function renderHist() {
+    const payments = window._payments || [];
+    const tipoLabel = { criado: 'Criado', edit: 'Editado', entregue: 'Entregue ao financeiro', cancelado: 'Cancelado' };
+    const all = [];
+    payments.forEach(p => {
+      p.historico.forEach(h => all.push({ ...h, pId: p.id, pDesc: p.desc }));
+    });
+    all.sort((a, b) => b.quando.localeCompare(a.quando));
+    if (!all.length) { document.getElementById('hist-list').innerHTML = `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma alteração registrada</div></div>`; return; }
+    document.getElementById('hist-list').innerHTML = all.map(h => `
+      <div class="hist-item ${h.tipo}">
+        <div class="hist-tipo">${tipoLabel[h.tipo] || h.tipo} · #${h.pId} — ${h.pDesc}</div>
+        ${h.razao ? `<div class="hist-desc">${h.razao}</div>` : ''}
+        ${h.snapshot ? `<div class="hist-snap">${h.snapshot.desc} · ${h.snapshot.forn} · ${fmtM(h.snapshot.valor)}</div>` : ''}
+        <div class="hist-time">${fmtDT(h.quando)}</div>
+      </div>`).join('');
+  }
+
+  // ── RENDER RELATÓRIO ──
+  function renderRel() {
+    const payments = window._payments || [];
+    const ativos = payments.filter(p => getStatus(p) !== 'cancelado');
+    const meses = {};
+    ativos.forEach(p => {
+      const d = parseD(p.data);
+      const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      if (!meses[k]) meses[k] = { k, label, total: 0, ent: 0, atr: 0, pend: 0, valor: 0, fPrazo: 0 };
+      meses[k].total++;
+      meses[k].valor += Number(p.valor);
+      const s = getStatus(p);
+      if (s === 'entregue') { meses[k].ent++; if (p.entregue && !p.entregue.dentroD) meses[k].fPrazo++; }
+      else if (s === 'atrasado') meses[k].atr++;
+      else meses[k].pend++;
+    });
+
+    const sorted = Object.values(meses).sort((a, b) => b.k.localeCompare(a.k));
+    const totGeral = ativos.reduce((a, p) => a + Number(p.valor), 0);
+    const totEntV = ativos.filter(p => getStatus(p) === 'entregue').reduce((a, p) => a + Number(p.valor), 0);
+    const totAtr = ativos.filter(p => getStatus(p) === 'atrasado').length;
+    const totCan = payments.filter(p => getStatus(p) === 'cancelado').length;
+    const totEdits = payments.reduce((a, p) => a + p.historico.filter(h => h.tipo === 'edit').length, 0);
+
+    let html = `
+      <div class="rel-section">
+        <div class="rel-section-title">Resumo geral — 3 meses</div>
+        <div class="rel-grid">
+          <div class="rel-card"><div class="rel-card-label">Total ativo</div><div class="rel-card-val">${ativos.length}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Volume total</div><div class="rel-card-val" style="font-size:14px;">${fmtM(totGeral)}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Valor entregue</div><div class="rel-card-val mv-green" style="font-size:14px;">${fmtM(totEntV)}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Atrasados</div><div class="rel-card-val mv-red">${totAtr}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Cancelados</div><div class="rel-card-val mv-gray">${totCan}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Edições feitas</div><div class="rel-card-val">${totEdits}</div></div>
+        </div>
+      </div>`;
+
+    sorted.forEach(m => {
+      html += `
+        <div class="rel-section">
+          <div class="rel-section-title">${m.label}</div>
+          <div class="rel-grid">
+            <div class="rel-card"><div class="rel-card-label">Pagamentos</div><div class="rel-card-val">${m.total}</div></div>
+            <div class="rel-card"><div class="rel-card-label">Volume</div><div class="rel-card-val" style="font-size:14px;">${fmtM(m.valor)}</div></div>
+            <div class="rel-card"><div class="rel-card-label">No prazo</div><div class="rel-card-val mv-green">${m.ent - m.fPrazo}</div></div>
+            <div class="rel-card"><div class="rel-card-label">Fora do prazo</div><div class="rel-card-val ${m.fPrazo > 0 ? 'mv-red' : ''}">${m.fPrazo}</div></div>
+            <div class="rel-card"><div class="rel-card-label">Em aberto</div><div class="rel-card-val ${m.atr > 0 ? 'mv-red' : 'mv-yellow'}">${m.pend + m.atr}</div></div>
+          </div>
+        </div>`;
+    });
+
+    document.getElementById('rel-content').innerHTML = html;
+  }
+
+  // ── INIT ──
+  document.getElementById('n-data').value = todayISO();
+  updateNewPrazo();
+  setSyncState(false);
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script>
+</body>
+</html>
