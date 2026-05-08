@@ -369,13 +369,13 @@
 
   // ─── FIREBASE CONFIG — substitua com os seus dados ───
   const firebaseConfig = {
-    apiKey: "COLE_SUA_API_KEY_AQUI",
-    authDomain: "COLE_SEU_PROJECT_ID.firebaseapp.com",
-    databaseURL: "https://COLE_SEU_PROJECT_ID-default-rtdb.firebaseio.com",
-    projectId: "COLE_SEU_PROJECT_ID",
-    storageBucket: "COLE_SEU_PROJECT_ID.appspot.com",
-    messagingSenderId: "COLE_SEU_MESSAGING_ID",
-    appId: "COLE_SEU_APP_ID"
+    apiKey: "AIzaSyCnjWxsT7WXDrdy0D6tghBGLK_6cVM09nM",
+    authDomain: "controle-de-pagamento-17df9.firebaseapp.com",
+    databaseURL: "https://controle-de-pagamento-17df9-default-rtdb.firebaseio.com",
+    projectId: "controle-de-pagamento-17df9",
+    storageBucket: "controle-de-pagamento-17df9.firebasestorage.app",
+    messagingSenderId: "637916614200",
+    appId: "1:637916614200:web:9ddb019a280e3ffcf460cd"
   };
   // ─────────────────────────────────────────────────────
 
@@ -438,9 +438,9 @@
     }
   }
 
-  function setSyncState(ok) {
+  function setSyncState(ok, msg) {
     document.getElementById('sync-dot').className = 'sync-dot' + (ok ? '' : ' off');
-    document.getElementById('sync-label').textContent = ok ? 'Online' : 'Sem conexão';
+    document.getElementById('sync-label').textContent = ok ? 'Online' : (msg || 'Sem conexão — verifique o Firebase');
   }
 
   // ── DRAWER ──
