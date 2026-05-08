@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <meta name="theme-color" content="#1a56db"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Prestação"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icon-192.png"/>
+  <title>Prestação de Contas</title>
+  <style>
+    :root {
+      --blue: #1a56db; --blue-dark: #1245b5; --blue-light: #e8f0fe;
+      --green: #057a55; --green-light: #def7ec;
+      --red: #c81e1e; --red-light: #fde8e8;
+      --yellow: #723b13; --yellow-light: #fdf6b2;
+      --gray: #374151; --gray-light: #f9fafb; --gray-mid: #e5e7eb;
+      --text: #111827; --text-secondary: #6b7280;
+      --white: #ffffff; --border: #e5e7eb;
+      --radius: 10px; --radius-sm: 6px;
+      --shadow: 0 1px 3px rgba(0,0,0,.1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f3f4f6; color: var(--text); font-size: 14px; }
+
+    /* ── TOP BAR ── */
+    .topbar { background: var(--blue); color: #fff; padding: 14px 16px 10px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+    .topbar h1 { font-size: 16px; font-weight: 600; }
+    .topbar-sub { font-size: 11px; opacity: .8; margin-top: 1px; }
+    .sync-indicator { display: flex; align-items: center; gap: 5px; font-size: 11px; }
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
+    .sync-dot.off { background: #fbbf24; }
+
+    /* ── TABS ── */
+    .tabs { display: flex; background: var(--white); border-bottom: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { flex: 1; min-width: 80px; padding: 12px 8px; text-align: center; font-size: 12px; font-weight: 500; color: var(--text-secondary); border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; background: none; border-top: none; border-left: none; border-right: none; }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    /* ── PANELS ── */
+    .panel { display: none; padding: 12px; padding-bottom: 90px; }
+    .panel.active { display: block; }
+
+    /* ── CARDS / METRICS ── */
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .metric { background: var(--white); border-radius: var(--radius-sm); padding: 10px 12px; box-shadow: var(--shadow); }
+    .metric-label { font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; }
+    .metric-value { font-size: 20px; font-weight: 600; color: var(--text); }
+    .mv-green { color: var(--green); }
+    .mv-red { color: var(--red); }
+    .mv-yellow { color: var(--yellow); }
+    .mv-gray { color: var(--text-secondary); }
+
+    /* ── ALERTS ── */
+    .alertbox { border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 8px; font-size: 12px; display: flex; align-items: flex-start; gap: 8px; }
+    .alertbox.danger { background: var(--red-light); color: var(--red); }
+    .alertbox.warning { background: var(--yellow-light); color: var(--yellow); }
+    .alertbox-icon { font-size: 14px; margin-top: 1px; flex-shrink: 0; }
+
+    /* ── FILTERS ── */
+    .filters { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; margin-bottom: 10px; }
+    .filters::-webkit-scrollbar { display: none; }
+    .filter-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--white); color: var(--text-secondary); font-size: 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .filter-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+    /* ── PAYMENT CARDS ── */
+    .pay-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 10px; overflow: hidden; }
+    .pay-card.cancelado { opacity: .6; }
+    .pay-card-header { padding: 12px 14px 8px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .pay-card-title { font-size: 14px; font-weight: 600; color: var(--text); flex: 1; }
+    .pay-card-title.cancelado { text-decoration: line-through; }
+    .pay-card-meta { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 10px; }
+    .meta-row { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
+    .meta-row strong { color: var(--text); }
+    .pay-card-footer { border-top: 1px solid var(--border); padding: 8px 10px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+    .prazo-tag { font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 20px; }
+    .prazo-ok { background: var(--green-light); color: var(--green); }
+    .prazo-warn { background: var(--yellow-light); color: var(--yellow); }
+    .prazo-over { background: var(--red-light); color: var(--red); }
+    .actions { display: flex; gap: 5px; flex-wrap: wrap; }
+
+    /* ── BADGES ── */
+    .badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+    .badge-pendente { background: var(--yellow-light); color: var(--yellow); }
+    .badge-atrasado { background: var(--red-light); color: var(--red); }
+    .badge-entregue { background: var(--green-light); color: var(--green); }
+    .badge-cancelado { background: var(--gray-mid); color: var(--text-secondary); }
+    .badge-editado { background: var(--blue-light); color: var(--blue-dark); }
+
+    /* ── BUTTONS ── */
+    button { cursor: pointer; font-family: inherit; }
+    .btn { padding: 7px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--white); color: var(--text); font-size: 12px; font-weight: 500; }
+    .btn:active { opacity: .8; }
+    .btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .btn-success { background: var(--green); color: #fff; border-color: var(--green); }
+    .btn-danger { background: var(--red); color: #fff; border-color: var(--red); }
+    .btn-ghost { background: transparent; border-color: var(--border); color: var(--text-secondary); padding: 6px 10px; }
+    .btn-lg { width: 100%; padding: 14px; font-size: 15px; border-radius: var(--radius); }
+    .btn-fab { position: fixed; bottom: 24px; right: 16px; width: 56px; height: 56px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 26px; border: none; box-shadow: 0 4px 12px rgba(26,86,219,.4); display: flex; align-items: center; justify-content: center; z-index: 40; }
+
+    /* ── FORMS ── */
+    .form-group { margin-bottom: 14px; }
+    .form-label { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 5px; display: block; }
+    .form-control { width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; color: var(--text); background: var(--white); appearance: none; -webkit-appearance: none; }
+    .form-control:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,86,219,.12); }
+    .form-hint { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+    .form-hint.warn { color: var(--yellow); font-weight: 500; }
+    .form-hint.danger { color: var(--red); font-weight: 500; }
+    .form-hint.ok { color: var(--green); font-weight: 500; }
+
+    /* ── DRAWER / MODAL ── */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 60; display: none; }
+    .overlay.open { display: block; }
+    .drawer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--white); border-radius: 16px 16px 0 0; z-index: 70; transform: translateY(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); max-height: 92vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .drawer.open { transform: translateY(0); }
+    .drawer-handle { width: 36px; height: 4px; background: var(--gray-mid); border-radius: 2px; margin: 10px auto 4px; }
+    .drawer-header { padding: 6px 16px 14px; border-bottom: 1px solid var(--border); }
+    .drawer-title { font-size: 16px; font-weight: 600; }
+    .drawer-sub { font-size: 12px; color: var(--text-secondary); margin-top: 3px; }
+    .drawer-body { padding: 16px; }
+    .drawer-footer { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+    .drawer-footer button { flex: 1; }
+
+    /* ── HISTORY ── */
+    .hist-item { padding: 10px 12px; border-left: 3px solid var(--border); margin-bottom: 8px; background: var(--white); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; box-shadow: var(--shadow); }
+    .hist-item.criado { border-color: var(--green); }
+    .hist-item.edit { border-color: var(--blue); }
+    .hist-item.entregue { border-color: var(--green); }
+    .hist-item.cancelado { border-color: var(--red); }
+    .hist-tipo { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-secondary); }
+    .hist-desc { font-size: 12px; color: var(--text); margin-top: 2px; }
+    .hist-snap { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+    .hist-time { font-size: 10px; color: var(--text-secondary); margin-top: 3px; }
+
+    /* ── REL CARDS ── */
+    .rel-section { margin-bottom: 18px; }
+    .rel-section-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; text-transform: capitalize; }
+    .rel-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+    .rel-card { background: var(--white); border-radius: var(--radius-sm); padding: 10px 12px; box-shadow: var(--shadow); }
+    .rel-card-label { font-size: 10px; color: var(--text-secondary); }
+    .rel-card-val { font-size: 17px; font-weight: 600; color: var(--text); margin-top: 1px; }
+
+    /* ── LOADING / EMPTY ── */
+    .loading { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 13px; }
+    .empty { text-align: center; padding: 40px 20px; }
+    .empty-icon { font-size: 32px; margin-bottom: 8px; }
+    .empty-text { font-size: 13px; color: var(--text-secondary); }
+
+    /* ── LIMIT BAR ── */
+    .limit-bar { padding: 9px 12px; border-radius: var(--radius-sm); margin-bottom: 12px; font-size: 12px; font-weight: 500; }
+    .limit-bar.ok { background: var(--green-light); color: var(--green); }
+    .limit-bar.warn { background: var(--yellow-light); color: var(--yellow); }
+    .limit-bar.over { background: var(--red-light); color: var(--red); }
+
+    .section-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .section-title { font-size: 13px; font-weight: 600; color: var(--text); }
+
+    @media (min-width: 640px) {
+      .panel { max-width: 640px; margin: 0 auto; }
+      .drawer { max-width: 480px; left: 50%; transform: translateX(-50%) translateY(100%); right: auto; width: 100%; }
+      .drawer.open { transform: translateX(-50%) translateY(0); }
+      .btn-fab { right: calc(50% - 300px); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar h1" style="font-size:15px;font-weight:600;">Prestação de Contas</div>
+    <div class="topbar-sub">Cartão corporativo · Prazo máx. 48h</div>
+  </div>
+  <div class="sync-indicator">
+    <div class="sync-dot" id="sync-dot"></div>
+    <span id="sync-label">–</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('pagamentos',this)">Pagamentos</button>
+  <button class="tab" onclick="switchTab('historico',this)">Histórico</button>
+  <button class="tab" onclick="switchTab('relatorio',this)">Relatório</button>
+</div>
+
+<!-- PAGAMENTOS -->
+<div id="panel-pagamentos" class="panel active">
+  <div id="alert-area"></div>
+  <div id="import-banner" style="background:#def7ec;border:1px solid #057a55;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+    <div>
+      <div style="font-size:13px;font-weight:600;color:#057a55;">📥 Planilha pronta para importar</div>
+      <div style="font-size:11px;color:#374151;margin-top:2px;">72 registros · R$ 135.078,65 · Cartões 2972 e 2669 · 01/05 a 08/05/2026</div>
+    </div>
+    <button class="btn btn-success" onclick="importarPlanilha()" id="btn-importar" style="white-space:nowrap;padding:9px 16px;font-size:13px;">
+      Importar agora
+    </button>
+  </div>
+  <div class="metrics" id="metrics"></div>
+  <div class="filters" id="filters">
+    <button class="filter-btn active" data-f="ativos" onclick="setFilter('ativos',this)">Ativos</button>
+    <button class="filter-btn" data-f="pendente" onclick="setFilter('pendente',this)">Pendentes</button>
+    <button class="filter-btn" data-f="atrasado" onclick="setFilter('atrasado',this)">Atrasados</button>
+    <button class="filter-btn" data-f="entregue" onclick="setFilter('entregue',this)">Entregues</button>
+    <button class="filter-btn" data-f="cancelado" onclick="setFilter('cancelado',this)">Cancelados</button>
+    <button class="filter-btn" data-f="todos" onclick="setFilter('todos',this)">Todos</button>
+  </div>
+  <div id="pay-list"><div class="loading">Carregando...</div></div>
+</div>
+
+<!-- HISTÓRICO -->
+<div id="panel-historico" class="panel">
+  <div class="section-row">
+    <div class="section-title">Todas as alterações</div>
+  </div>
+  <div id="hist-list"><div class="loading">Carregando...</div></div>
+</div>
+
+<!-- RELATÓRIO -->
+<div id="panel-relatorio" class="panel">
+  <div id="rel-content"><div class="loading">Carregando...</div></div>
+</div>
+
+<!-- FAB -->
+<button class="btn-fab" onclick="openDrawer('drawer-new')" aria-label="Novo pagamento">+</button>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay" onclick="closeAllDrawers()"></div>
+
+<!-- DRAWER: NOVO PAGAMENTO -->
+<div class="drawer" id="drawer-new">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Novo pagamento</div>
+    <div class="drawer-sub">O prazo de 48h conta a partir da data do pagamento</div>
+  </div>
+  <div class="drawer-body">
+    <div class="form-group">
+      <label class="form-label">Descrição *</label>
+      <input class="form-control" id="n-desc" type="text" placeholder="Ex: Compra de material de escritório"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Fornecedor *</label>
+      <input class="form-control" id="n-forn" type="text" placeholder="Nome do fornecedor"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Valor (R$) *</label>
+      <input class="form-control" id="n-val" type="number" placeholder="0,00" min="0" step="0.01" inputmode="decimal"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cartão utilizado *</label>
+      <input class="form-control" id="n-cartao" type="text" placeholder="Ex: Visa final 1234"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data do pagamento *</label>
+      <input class="form-control" id="n-data" type="date" onchange="updateNewPrazo()"/>
+      <div class="form-hint warn" id="n-prazo-hint"></div>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" onclick="closeAllDrawers()">Cancelar</button>
+    <button class="btn btn-primary" onclick="addPayment()">Salvar pagamento</button>
+  </div>
+</div>
+
+<!-- DRAWER: ENTREGA -->
+<div class="drawer" id="drawer-entrega">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Registrar entrega ao financeiro</div>
+    <div class="drawer-sub" id="ent-sub"></div>
+  </div>
+  <div class="drawer-body">
+    <div class="limit-bar" id="ent-limit"></div>
+    <div class="form-group">
+      <label class="form-label">Setor que recebeu *</label>
+      <input class="form-control" id="ent-setor" type="text" placeholder="Ex: Financeiro, Contabilidade"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Pessoa que recebeu *</label>
+      <input class="form-control" id="ent-pessoa" type="text" placeholder="Nome completo"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data da entrega *</label>
+      <input class="form-control" id="ent-data" type="date" onchange="checkEntDentro48()"/>
+      <div class="form-hint" id="ent-48warn"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Observação</label>
+      <input class="form-control" id="ent-obs" type="text" placeholder="Ex: Nota fiscal entregue junto"/>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" onclick="closeAllDrawers()">Cancelar</button>
+    <button class="btn btn-success" onclick="confirmEntrega()">Confirmar entrega</button>
+  </div>
+</div>
+
+<!-- DRAWER: EDITAR -->
+<div class="drawer" id="drawer-edit">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Editar pagamento</div>
+    <div class="drawer-sub" id="edit-sub"></div>
+  </div>
+  <div class="drawer-body">
+    <div class="form-group">
+      <label class="form-label">Descrição</label>
+      <input class="form-control" id="edit-desc" type="text"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Fornecedor</label>
+      <input class="form-control" id="edit-forn" type="text"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Valor (R$)</label>
+      <input class="form-control" id="edit-val" type="number" min="0" step="0.01" inputmode="decimal"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cartão utilizado</label>
+      <input class="form-control" id="edit-cartao" type="text"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data do pagamento</label>
+      <input class="form-control" id="edit-data" type="date"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Motivo da edição *</label>
+      <input class="form-control" id="edit-razao" type="text" placeholder="Ex: Valor incorreto, fornecedor errado..."/>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" onclick="closeAllDrawers()">Cancelar</button>
+    <button class="btn btn-primary" onclick="confirmEdit()">Salvar edição</button>
+  </div>
+</div>
+
+<!-- DRAWER: CANCELAR -->
+<div class="drawer" id="drawer-cancel">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Cancelar registro</div>
+    <div class="drawer-sub" id="cancel-sub"></div>
+  </div>
+  <div class="drawer-body">
+    <div class="alertbox danger">
+      <span class="alertbox-icon">⚠️</span>
+      <span>O registro <strong>não será apagado</strong>. Ficará marcado como cancelado no histórico para auditoria completa.</span>
+    </div>
+    <div class="form-group" style="margin-top:14px;">
+      <label class="form-label">Motivo do cancelamento *</label>
+      <input class="form-control" id="cancel-razao" type="text" placeholder="Ex: Pagamento duplicado, erro de cadastro..."/>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" onclick="closeAllDrawers()">Voltar</button>
+    <button class="btn btn-danger" onclick="confirmCancel()">Confirmar cancelamento</button>
+  </div>
+</div>
+
+<!-- DRAWER: HISTÓRICO DO ITEM -->
+<div class="drawer" id="drawer-hist-item">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Histórico do registro</div>
+    <div class="drawer-sub" id="hist-item-sub"></div>
+  </div>
+  <div class="drawer-body" id="hist-item-body"></div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" style="flex:1" onclick="closeAllDrawers()">Fechar</button>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ─── FIREBASE CONFIG — substitua com os seus dados ───
+  const firebaseConfig = {
+    apiKey: "AIzaSyCnjWxsT7WXDrdy0D6tghBGLK_6cVM09nM",
+    authDomain: "controle-de-pagamento-17df9.firebaseapp.com",
+    databaseURL: "https://controle-de-pagamento-17df9-default-rtdb.firebaseio.com",
+    projectId: "controle-de-pagamento-17df9",
+    storageBucket: "controle-de-pagamento-17df9.firebasestorage.app",
+    messagingSenderId: "637916614200",
+    appId: "1:637916614200:web:9ddb019a280e3ffcf460cd"
+  };
+  // ─────────────────────────────────────────────────────
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const dataRef = ref(db, 'prestacao');
+
+  let _saving = false;
+  window._fbSave = async (data) => {
+    _saving = true;
+    await set(dataRef, data);
+    setTimeout(()=>{ _saving=false; }, 1500);
+  };
+
+  onValue(dataRef, (snapshot) => {
+    if (_saving) return;
+    const val = snapshot.val();
+    if (val) {
+      window._payments = (val.payments || []).map(p => ({...p, id: Number(p.id)}));
+      window._nextId = Number(val.nextId) || 1;
+    } else {
+      window._payments = [];
+      window._nextId = 1;
+    }
+    setSyncState(true);
+    render();
+    renderHist();
+    renderRel();
+  }, (error) => {
+    console.error(error);
+    setSyncState(false);
+  });
+</script>
+
+<script>
+  // ── STATE ──
+  window._payments = window._payments || [];
+  window._nextId = window._nextId || 1;
+  let currentFilter = 'ativos';
+  let pendingId = null;
+  let activeDrawer = null;
+
+  // ── UTILS ──
+  function parseD(s) { return new Date(s + 'T00:00:00'); }
+  function fmtD(s) { return parseD(s).toLocaleDateString('pt-BR'); }
+  function fmtDT(iso) { return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+  function fmtM(v) { return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function todayISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+  function prazo48ISO(d) { const dt = parseD(d); dt.setDate(dt.getDate() + 2); return dt.toISOString().split('T')[0]; }
+  function horasRest(d) { const lim = parseD(prazo48ISO(d)); return Math.round((lim - new Date()) / 3600000); }
+
+  function getStatus(p) {
+    if (p.status === 'entregue' || p.status === 'cancelado') return p.status;
+    return horasRest(p.data) < 0 ? 'atrasado' : 'pendente';
+  }
+
+  async function save() {
+    if (window._fbSave) {
+      await window._fbSave({ payments: window._payments, nextId: window._nextId });
+    }
+  }
+
+  function setSyncState(ok, msg) {
+    document.getElementById('sync-dot').className = 'sync-dot' + (ok ? '' : ' off');
+    document.getElementById('sync-label').textContent = ok ? 'Online' : (msg || 'Sem conexão — verifique o Firebase');
+  }
+
+  // ── DRAWER ──
+  function openDrawer(id) {
+    closeAllDrawers();
+    document.getElementById('overlay').classList.add('open');
+    document.getElementById(id).classList.add('open');
+    activeDrawer = id;
+    document.body.style.overflow = 'hidden';
+  }
+  function closeAllDrawers() {
+    document.querySelectorAll('.drawer').forEach(d => d.classList.remove('open'));
+    document.getElementById('overlay').classList.remove('open');
+    activeDrawer = null;
+    document.body.style.overflow = '';
+  }
+
+  // ── TABS ──
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + name).classList.add('active');
+  }
+
+  // ── FILTERS ──
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+    render();
+  }
+
+  // ── NEW PAYMENT ──
+  function updateNewPrazo() {
+    const d = document.getElementById('n-data').value;
+    const hint = document.getElementById('n-prazo-hint');
+    if (!d) { hint.textContent = ''; return; }
+    hint.textContent = `⏱ Prazo máximo para entrega: ${fmtD(prazo48ISO(d))}`;
+  }
+
+  async function addPayment() {
+    const desc = document.getElementById('n-desc').value.trim();
+    const forn = document.getElementById('n-forn').value.trim();
+    const val = parseFloat(document.getElementById('n-val').value);
+    const cartao = document.getElementById('n-cartao').value.trim();
+    const data = document.getElementById('n-data').value;
+    if (!desc || !forn || isNaN(val) || !cartao || !data) { alert('Preencha todos os campos obrigatórios.'); return; }
+    const now = new Date().toISOString();
+    const novo = { id: window._nextId++, data, desc, forn, valor: val, cartao, status: 'pendente', entregue: null,
+      historico: [{ tipo: 'criado', quando: now, razao: '', snapshot: { desc, forn, valor: val, cartao, data } }] };
+    window._payments.unshift(novo);
+    closeAllDrawers(); pendingId = null;
+    ['n-desc','n-forn','n-val','n-cartao','n-data'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('n-prazo-hint').textContent = '';
+    await save(); render(); renderHist(); renderRel();
+  }
+
+  // ── ENTREGA ──
+  function openEntrega(id) {
+    pendingId = Number(id);
+    const p = window._payments.find(x => Number(x.id) === Number(id));
+    document.getElementById('ent-sub').textContent = `${p.desc} — ${fmtM(p.valor)}`;
+    const h = horasRest(p.data);
+    const lim = document.getElementById('ent-limit');
+    if (h < 0) { lim.className = 'limit-bar over'; lim.textContent = `⚠️ Prazo vencido há ${Math.abs(h)}h — limite era ${fmtD(prazo48ISO(p.data))}`; }
+    else if (h <= 12) { lim.className = 'limit-bar warn'; lim.textContent = `⏱ Urgente! ${h}h restantes — limite: ${fmtD(prazo48ISO(p.data))}`; }
+    else { lim.className = 'limit-bar ok'; lim.textContent = `✓ Dentro do prazo — ${h}h restantes — limite: ${fmtD(prazo48ISO(p.data))}`; }
+    ['ent-setor','ent-pessoa','ent-obs'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('ent-data').value = todayISO();
+    document.getElementById('ent-48warn').textContent = '';
+    document.getElementById('ent-48warn').className = 'form-hint';
+    openDrawer('drawer-entrega');
+  }
+
+  function checkEntDentro48() {
+    const p = window._payments.find(x => Number(x.id) === Number(pendingId));
+    if (!p) return;
+    const de = document.getElementById('ent-data').value;
+    const hint = document.getElementById('ent-48warn');
+    if (parseD(de) > parseD(prazo48ISO(p.data))) {
+      hint.textContent = '⚠️ Data posterior a 48h — será registrado como entregue FORA DO PRAZO.';
+      hint.className = 'form-hint danger';
+    } else {
+      hint.textContent = '✓ Dentro do prazo de 48h.';
+      hint.className = 'form-hint ok';
+    }
+  }
+
+  async function confirmEntrega() {
+    const setor = document.getElementById('ent-setor').value.trim();
+    const pessoa = document.getElementById('ent-pessoa').value.trim();
+    const de = document.getElementById('ent-data').value;
+    if (!setor || !pessoa || !de) { alert('Preencha setor, pessoa e data.'); return; }
+    const obs = document.getElementById('ent-obs').value.trim();
+    const capturedId = pendingId;
+    const p = window._payments.find(x => Number(x.id) === Number(capturedId));
+    if (!p) { alert('Erro: registro não encontrado. Feche e tente novamente.'); return; }
+    const dentroD = parseD(de) <= parseD(prazo48ISO(p.data));
+    p.status = 'entregue';
+    p.entregue = { setor, pessoa, dataEntrega: de, obs, dentroD };
+    p.historico.push({ tipo: 'entregue', quando: new Date().toISOString(), razao: `Entregue a ${pessoa} / ${setor}`, snapshot: null });
+    pendingId = null;
+    closeAllDrawers();
+    await save();
+    render(); renderHist(); renderRel();
+  }
+
+  // ── EDITAR ──
+  function openEdit(id) {
+    pendingId = Number(id);
+    const p = window._payments.find(x => Number(x.id) === Number(id));
+    document.getElementById('edit-sub').textContent = `#${p.id} — ${fmtD(p.data)}`;
+    document.getElementById('edit-desc').value = p.desc;
+    document.getElementById('edit-forn').value = p.forn;
+    document.getElementById('edit-val').value = p.valor;
+    document.getElementById('edit-resp').value = p.resp;
+    document.getElementById('edit-data').value = p.data;
+    document.getElementById('edit-razao').value = '';
+    openDrawer('drawer-edit');
+  }
+
+  async function confirmEdit() {
+    const razao = document.getElementById('edit-razao').value.trim();
+    if (!razao) { alert('Informe o motivo da edição.'); return; }
+    const capturedId = pendingId;
+    const p = window._payments.find(x => Number(x.id) === Number(capturedId));
+    if (!p) { alert('Erro: registro não encontrado. Feche e tente novamente.'); return; }
+    const snap = { desc: p.desc, forn: p.forn, valor: p.valor, cartao: p.cartao, data: p.data };
+    p.desc = document.getElementById('edit-desc').value.trim() || p.desc;
+    p.forn = document.getElementById('edit-forn').value.trim() || p.forn;
+    p.valor = parseFloat(document.getElementById('edit-val').value) || p.valor;
+    p.cartao = document.getElementById('edit-cartao').value.trim() || p.cartao;
+    p.data = document.getElementById('edit-data').value || p.data;
+    p.historico.push({ tipo: 'edit', quando: new Date().toISOString(), razao, snapshot: snap });
+    pendingId = null;
+    closeAllDrawers();
+    await save();
+    render(); renderHist(); renderRel();
+  }
+
+  // ── CANCELAR ──
+  function openCancel(id) {
+    pendingId = Number(id);
+    const p = window._payments.find(x => Number(x.id) === Number(id));
+    document.getElementById('cancel-sub').textContent = `#${p.id} — ${p.desc} — ${fmtM(p.valor)}`;
+    document.getElementById('cancel-razao').value = '';
+    openDrawer('drawer-cancel');
+  }
+
+  async function confirmCancel() {
+    const razao = document.getElementById('cancel-razao').value.trim();
+    if (!razao) { alert('Informe o motivo do cancelamento.'); return; }
+    const capturedId = pendingId;
+    const p = window._payments.find(x => Number(x.id) === Number(capturedId));
+    if (!p) { alert('Erro: registro não encontrado. Feche e tente novamente.'); return; }
+    p.status = 'cancelado';
+    p.historico.push({ tipo: 'cancelado', quando: new Date().toISOString(), razao, snapshot: null });
+    pendingId = null;
+    closeAllDrawers();
+    await save();
+    render(); renderHist(); renderRel();
+  }
+
+  // ── HISTÓRICO DO ITEM ──
+  function openHistItem(id) {
+    const p = window._payments.find(x => Number(x.id) === Number(id));
+    document.getElementById('hist-item-sub').textContent = `#${p.id} — ${p.desc}`;
+    const tipoLabel = { criado: 'Criado', edit: 'Editado', entregue: 'Entregue ao financeiro', cancelado: 'Cancelado' };
+    const evts = [...p.historico].reverse();
+    document.getElementById('hist-item-body').innerHTML = evts.map(h => `
+      <div class="hist-item ${h.tipo}">
+        <div class="hist-tipo">${tipoLabel[h.tipo] || h.tipo}</div>
+        ${h.razao ? `<div class="hist-desc">${h.razao}</div>` : ''}
+        ${h.snapshot ? `<div class="hist-snap">${h.snapshot.desc} · ${h.snapshot.forn} · ${fmtM(h.snapshot.valor)} · ${h.snapshot.resp}</div>` : ''}
+        <div class="hist-time">${fmtDT(h.quando)}</div>
+      </div>`).join('');
+    openDrawer('drawer-hist-item');
+  }
+
+  // ── RENDER PAYMENTS ──
+  function render() {
+    const payments = window._payments || [];
+    const filtered = payments.filter(p => {
+      const s = getStatus(p);
+      if (currentFilter === 'ativos') return s !== 'cancelado';
+      if (currentFilter === 'todos') return true;
+      return s === currentFilter;
+    });
+
+    // metrics
+    const ativos = payments.filter(p => getStatus(p) !== 'cancelado');
+    const ent = ativos.filter(p => getStatus(p) === 'entregue').length;
+    const atr = ativos.filter(p => getStatus(p) === 'atrasado').length;
+    const pend = ativos.filter(p => getStatus(p) === 'pendente').length;
+    const can = payments.filter(p => getStatus(p) === 'cancelado').length;
+    const urg = ativos.filter(p => { const h = horasRest(p.data); return getStatus(p) === 'pendente' && h >= 0 && h <= 24; }).length;
+    const valPend = ativos.filter(p => getStatus(p) !== 'entregue').reduce((a, p) => a + Number(p.valor), 0);
+
+    document.getElementById('metrics').innerHTML = `
+      <div class="metric"><div class="metric-label">Entregues</div><div class="metric-value mv-green">${ent}</div></div>
+      <div class="metric"><div class="metric-label">Pendentes</div><div class="metric-value mv-yellow">${pend}</div></div>
+      <div class="metric"><div class="metric-label">Atrasados</div><div class="metric-value mv-red">${atr}</div></div>
+      <div class="metric"><div class="metric-label">Urgentes</div><div class="metric-value ${urg > 0 ? 'mv-yellow' : ''}">${urg}</div></div>
+      <div class="metric"><div class="metric-label">A prestar</div><div class="metric-value" style="font-size:13px;">${fmtM(valPend)}</div></div>
+      <div class="metric"><div class="metric-label">Cancelados</div><div class="metric-value mv-gray">${can}</div></div>
+    `;
+
+    // alerts
+    let alerts = '';
+    if (atr > 0) alerts += `<div class="alertbox danger"><span class="alertbox-icon">⚠️</span><span>${atr} pagamento${atr > 1 ? 's' : ''} passaram de 48h sem prestação de contas.</span></div>`;
+    if (urg > 0) alerts += `<div class="alertbox warning"><span class="alertbox-icon">⏱</span><span>${urg} pagamento${urg > 1 ? 's' : ''} vencem nas próximas 24h — aja agora.</span></div>`;
+    document.getElementById('alert-area').innerHTML = alerts;
+
+    // list
+    if (!filtered.length) {
+      document.getElementById('pay-list').innerHTML = `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhum registro encontrado</div></div>`;
+      return;
+    }
+
+    document.getElementById('pay-list').innerHTML = filtered.map(p => {
+      const s = getStatus(p);
+      const isCan = s === 'cancelado';
+      const isEnt = s === 'entregue';
+      const hasEdit = p.historico.some(h => h.tipo === 'edit');
+
+      // prazo tag
+      let prazoTag = '';
+      if (!isCan && !isEnt) {
+        const h = horasRest(p.data);
+        if (h < 0) prazoTag = `<span class="prazo-tag prazo-over">Atrasado ${Math.abs(h)}h</span>`;
+        else if (h <= 6) prazoTag = `<span class="prazo-tag prazo-over">⚠️ ${h}h restantes</span>`;
+        else if (h <= 24) prazoTag = `<span class="prazo-tag prazo-warn">⏱ ${h}h restantes</span>`;
+        else prazoTag = `<span class="prazo-tag prazo-ok">Prazo: ${fmtD(prazo48ISO(p.data))}</span>`;
+      }
+
+      // badge
+      const badgeMap = { pendente: 'badge-pendente', atrasado: 'badge-atrasado', entregue: 'badge-entregue', cancelado: 'badge-cancelado' };
+      const labelMap = { pendente: 'Pendente', atrasado: 'Atrasado', entregue: 'Entregue', cancelado: 'Cancelado' };
+      let badges = `<span class="badge ${badgeMap[s]}">${labelMap[s]}</span>`;
+      if (hasEdit) badges += ` <span class="badge badge-editado">editado</span>`;
+
+      // entregue info
+      let entInfo = '';
+      if (isEnt && p.entregue) {
+        const e = p.entregue;
+        const prazoLabel = e.dentroD ? '<span style="color:#057a55;font-size:11px;">✓ No prazo</span>' : '<span style="color:#c81e1e;font-size:11px;">⚠️ Fora do prazo</span>';
+        entInfo = `<div class="meta-row">👤 <strong>${e.pessoa}</strong> · ${e.setor} · ${fmtD(e.dataEntrega)} · ${prazoLabel}</div>`;
+      }
+
+      // actions
+      let acts = '';
+      if (!isCan && !isEnt) acts += `<button class="btn btn-success" onclick="openEntrega(${p.id})">Entregue</button>`;
+      if (!isCan) acts += `<button class="btn" onclick="openEdit(${p.id})">Editar</button>`;
+      if (!isCan) acts += `<button class="btn btn-ghost" onclick="openCancel(${p.id})">Cancelar</button>`;
+      acts += `<button class="btn btn-ghost" onclick="openHistItem(${p.id})">Histórico</button>`;
+
+      return `
+        <div class="pay-card ${isCan ? 'cancelado' : ''}">
+          <div class="pay-card-header">
+            <div class="pay-card-title ${isCan ? 'cancelado' : ''}">${p.forn}</div>
+            <div style="padding:0 14px 4px;font-size:12px;color:#6b7280;">${p.desc}</div>
+            <div>${badges}</div>
+          </div>
+          <div class="pay-card-meta">
+            <div class="meta-row">📅 <strong>${fmtD(p.data)}</strong></div>
+            <div class="meta-row">🏪 ${p.forn}</div>
+            <div class="meta-row">💰 <strong>${fmtM(p.valor)}</strong></div>
+            <div class="meta-row">💳 ${p.cartao}</div>
+            ${entInfo}
+          </div>
+          <div class="pay-card-footer">
+            ${prazoTag}
+            <div class="actions">${acts}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── RENDER HISTÓRICO ──
+  function renderHist() {
+    const payments = window._payments || [];
+    const tipoLabel = { criado: 'Criado', edit: 'Editado', entregue: 'Entregue ao financeiro', cancelado: 'Cancelado' };
+    const all = [];
+    payments.forEach(p => {
+      p.historico.forEach(h => all.push({ ...h, pId: p.id, pDesc: p.desc }));
+    });
+    all.sort((a, b) => b.quando.localeCompare(a.quando));
+    if (!all.length) { document.getElementById('hist-list').innerHTML = `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma alteração registrada</div></div>`; return; }
+    document.getElementById('hist-list').innerHTML = all.map(h => `
+      <div class="hist-item ${h.tipo}">
+        <div class="hist-tipo">${tipoLabel[h.tipo] || h.tipo} · #${h.pId} — ${h.pDesc}</div>
+        ${h.razao ? `<div class="hist-desc">${h.razao}</div>` : ''}
+        ${h.snapshot ? `<div class="hist-snap">${h.snapshot.desc} · ${h.snapshot.forn} · ${fmtM(h.snapshot.valor)}</div>` : ''}
+        <div class="hist-time">${fmtDT(h.quando)}</div>
+      </div>`).join('');
+  }
+
+  // ── RENDER RELATÓRIO ──
+  function renderRel() {
+    const payments = window._payments || [];
+    const ativos = payments.filter(p => getStatus(p) !== 'cancelado');
+    const meses = {};
+    ativos.forEach(p => {
+      const d = parseD(p.data);
+      const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      if (!meses[k]) meses[k] = { k, label, total: 0, ent: 0, atr: 0, pend: 0, valor: 0, fPrazo: 0 };
+      meses[k].total++;
+      meses[k].valor += Number(p.valor);
+      const s = getStatus(p);
+      if (s === 'entregue') { meses[k].ent++; if (p.entregue && !p.entregue.dentroD) meses[k].fPrazo++; }
+      else if (s === 'atrasado') meses[k].atr++;
+      else meses[k].pend++;
+    });
+
+    const sorted = Object.values(meses).sort((a, b) => b.k.localeCompare(a.k));
+    const totGeral = ativos.reduce((a, p) => a + Number(p.valor), 0);
+    const totEntV = ativos.filter(p => getStatus(p) === 'entregue').reduce((a, p) => a + Number(p.valor), 0);
+    const totAtr = ativos.filter(p => getStatus(p) === 'atrasado').length;
+    const totCan = payments.filter(p => getStatus(p) === 'cancelado').length;
+    const totEdits = payments.reduce((a, p) => a + p.historico.filter(h => h.tipo === 'edit').length, 0);
+
+    let html = `
+      <div class="rel-section">
+        <div class="rel-section-title">Resumo geral — 3 meses</div>
+        <div class="rel-grid">
+          <div class="rel-card"><div class="rel-card-label">Total ativo</div><div class="rel-card-val">${ativos.length}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Volume total</div><div class="rel-card-val" style="font-size:14px;">${fmtM(totGeral)}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Valor entregue</div><div class="rel-card-val mv-green" style="font-size:14px;">${fmtM(totEntV)}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Atrasados</div><div class="rel-card-val mv-red">${totAtr}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Cancelados</div><div class="rel-card-val mv-gray">${totCan}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Edições feitas</div><div class="rel-card-val">${totEdits}</div></div>
+        </div>
+      </div>`;
+
+    sorted.forEach(m => {
+      html += `
+        <div class="rel-section">
+          <div class="rel-section-title">${m.label}</div>
+          <div class="rel-grid">
+            <div class="rel-card"><div class="rel-card-label">Pagamentos</div><div class="rel-card-val">${m.total}</div></div>
+            <div class="rel-card"><div class="rel-card-label">Volume</div><div class="rel-card-val" style="font-size:14px;">${fmtM(m.valor)}</div></div>
+            <div class="rel-card"><div class="rel-card-label">No prazo</div><div class="rel-card-val mv-green">${m.ent - m.fPrazo}</div></div>
+            <div class="rel-card"><div class="rel-card-label">Fora do prazo</div><div class="rel-card-val ${m.fPrazo > 0 ? 'mv-red' : ''}">${m.fPrazo}</div></div>
+            <div class="rel-card"><div class="rel-card-label">Em aberto</div><div class="rel-card-val ${m.atr > 0 ? 'mv-red' : 'mv-yellow'}">${m.pend + m.atr}</div></div>
+          </div>
+        </div>`;
+    });
+
+    html += `
+      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Exportar relatório</div>
+        <button class="btn btn-primary" onclick="exportarExcel()" style="width:100%;padding:14px;font-size:14px;border-radius:10px;" id="btn-export">
+          📊 Baixar Excel — Apresentação de Diretoria
+        </button>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;text-align:center;">
+          Dashboard executivo · Pagamentos · Resumo mensal · Pendências · Auditoria
+        </div>
+      </div>`;
+    document.getElementById('rel-content').innerHTML = html;
+  }
+
+
+  function exportarExcel() {
+    const btn = document.getElementById('btn-export');
+    if (btn) { btn.innerHTML = '⏳ Gerando relatório executivo...'; btn.disabled = true; }
+
+    try {
+      const payments = window._payments || [];
+      if (!payments.length) {
+        alert('Nenhum pagamento registrado para exportar.');
+        if (btn) { btn.innerHTML = '📊 Baixar Excel — Apresentação de Diretoria'; btn.disabled = false; }
+        return;
+      }
+
+      const dadosJSON = JSON.stringify({ payments, nextId: window._nextId || 1 });
+      const templateB64 = "ZnJvbSBvcGVucHl4bCBpbXBvcnQgV29ya2Jvb2sKZnJvbSBvcGVucHl4bC5zdHlsZXMgaW1wb3J0IChGb250LCBQYXR0ZXJuRmlsbCwgQWxpZ25tZW50LCBCb3JkZXIsIFNpZGUsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIEdyYWRpZW50RmlsbCkKZnJvbSBvcGVucHl4bC51dGlscyBpbXBvcnQgZ2V0X2NvbHVtbl9sZXR0ZXIKZnJvbSBvcGVucHl4bC5jaGFydCBpbXBvcnQgQmFyQ2hhcnQsIFBpZUNoYXJ0LCBSZWZlcmVuY2UKZnJvbSBvcGVucHl4bC5jaGFydC5zZXJpZXMgaW1wb3J0IERhdGFQb2ludApmcm9tIG9wZW5weXhsLmNoYXJ0LmxhYmVsIGltcG9ydCBEYXRhTGFiZWwKZnJvbSBkYXRldGltZSBpbXBvcnQgZGF0ZXRpbWUsIGRhdGUsIHRpbWVkZWx0YQoKdG9kYXkgPSBkYXRlLnRvZGF5KCkKCmltcG9ydCBzeXMsIGpzb24KCmRhdGEgPSBqc29uLmxvYWRzKHN5cy5zdGRpbi5yZWFkKCkpCnBheW1lbnRzID0gZGF0YS5nZXQoInBheW1lbnRzIiwgW10pCiMgTm9ybWFsaXplIGlkcyB0byBpbnQKZm9yIHAgaW4gcGF5bWVudHM6CiAgICBwWyJpZCJdID0gaW50KHAuZ2V0KCJpZCIsIDApKQogICAgcC5zZXRkZWZhdWx0KCJoaXN0b3JpY28iLCBbXSkKICAgIHAuc2V0ZGVmYXVsdCgiZW50cmVndWUiLCBOb25lKQoKZGVmIHBhcnNlX2RhdGUocyk6CiAgICByZXR1cm4gZGF0ZXRpbWUuc3RycHRpbWUocywgIiVZLSVtLSVkIikuZGF0ZSgpCgpkZWYgcHJhem80OChkKToKICAgIHJldHVybiBwYXJzZV9kYXRlKGQpICsgdGltZWRlbHRhKGRheXM9MikKCmRlZiBnZXRfc3RhdHVzKHApOgogICAgaWYgcC5nZXQoInN0YXR1cyIpIGluICgiZW50cmVndWUiLCJjYW5jZWxhZG8iKTogcmV0dXJuIHBbInN0YXR1cyJdCiAgICByZXR1cm4gImF0cmFzYWRvIiBpZiBwcmF6bzQ4KHBbImRhdGEiXSkgPCB0b2RheSBlbHNlICJwZW5kZW50ZSIKCiMg4pSA4pSAIFBBTEVUQSBFWEVDVVRJVkEg4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSACkFaVUxfRVNDICA9ICIxRjM4NjQiCkFaVUxfTUVEICA9ICIyRTc1QjYiCkFaVUxfQ0wgICA9ICJENkU0RjAiCkFaVUxfQUxUICA9ICJFQkYzRkIiClZFUkRFX0VTQyA9ICIxRTU2MzEiClZFUkRFX01FRCA9ICIyRDg2NTMiClZFUkRFX0NMICA9ICJENUVGREYiClZFUkRFX0FMVCA9ICJFQkY3RjAiClZFUk1fRVNDICA9ICI3QjAwMDAiClZFUk1fTUVEICA9ICJDMDAwMDAiClZFUk1fQ0wgICA9ICJGQ0U0RDYiClZFUk1fQUxUICA9ICJGREYwRUMiCkFNQVJfRVNDICA9ICI3RjYwMDAiCkFNQVJfTUVEICA9ICJCRjkwMDAiCkFNQVJfQ0wgICA9ICJGRkYyQ0MiCkNJTlpBX0VTQyA9ICI0MDQwNDAiCkNJTlpBX01FRCA9ICI4MDgwODAiCkNJTlpBX0NMICA9ICJGMkYyRjIiCkNJTlpBX0FMVCA9ICJGQUZBRkEiCkJSQU5DTyAgICA9ICJGRkZGRkYiCk9VUk8gICAgICA9ICJDOUE4NEMiCgpkZWYgRihoZXhfKTogcmV0dXJuIFBhdHRlcm5GaWxsKCJzb2xpZCIsIGZnQ29sb3I9aGV4XykKZGVmIEZvbnQyKGJvbGQ9RmFsc2UsIHNpemU9MTEsIGNvbG9yPSIwMDAwMDAiLCBpdGFsaWM9RmFsc2UsIG5hbWU9IkFyaWFsIik6CiAgICByZXR1cm4gRm9udChuYW1lPW5hbWUsIGJvbGQ9Ym9sZCwgc2l6ZT1zaXplLCBjb2xvcj1jb2xvciwgaXRhbGljPWl0YWxpYykKZGVmIEEoaD0iY2VudGVyIiwgdj0iY2VudGVyIiwgd3JhcD1GYWxzZSk6CiAgICByZXR1cm4gQWxpZ25tZW50KGhvcml6b250YWw9aCwgdmVydGljYWw9diwgd3JhcF90ZXh0PXdyYXApCmRlZiBib3JkZXJfYWxsKGNvbG9yPSJCRkJGQkYiKToKICAgIHMgPSBTaWRlKHN0eWxlPSJ0aGluIiwgY29sb3I9Y29sb3IpCiAgICByZXR1cm4gQm9yZGVyKGxlZnQ9cywgcmlnaHQ9cywgdG9wPXMsIGJvdHRvbT1zKQpkZWYgYm9yZGVyX21lZGl1bSgpOgogICAgbSA9IFNpZGUoc3R5bGU9Im1lZGl1bSIsIGNvbG9yPUFaVUxfTUVEKQogICAgcmV0dXJuIEJvcmRlcihsZWZ0PW0sIHJpZ2h0PW0sIHRvcD1tLCBib3R0b209bSkKCiMg4pSA4pSAIEPDgUxDVUxPUyDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAKYXRpdm9zICAgID0gW3AgZm9yIHAgaW4gcGF5bWVudHMgaWYgZ2V0X3N0YXR1cyhwKSAhPSAiY2FuY2VsYWRvIl0KZW50cmVndWVzID0gW3AgZm9yIHAgaW4gYXRpdm9zIGlmIGdldF9zdGF0dXMocCkgPT0gImVudHJlZ3VlIl0KYXRyYXNhZG9zID0gW3AgZm9yIHAgaW4gYXRpdm9zIGlmIGdldF9zdGF0dXMocCkgPT0gImF0cmFzYWRvIl0KcGVuZGVudGVzID0gW3AgZm9yIHAgaW4gYXRpdm9zIGlmIGdldF9zdGF0dXMocCkgPT0gInBlbmRlbnRlIl0KY2FuY2VsYWRvcz0gW3AgZm9yIHAgaW4gcGF5bWVudHMgaWYgZ2V0X3N0YXR1cyhwKSA9PSAiY2FuY2VsYWRvIl0Kbm9fcHJhem8gID0gW3AgZm9yIHAgaW4gZW50cmVndWVzIGlmIHAuZ2V0KCJlbnRyZWd1ZSIse30pIGFuZCBwWyJlbnRyZWd1ZSJdLmdldCgiZGVudHJvRCIpXQpmb3JhX3ByYXpvPSBbcCBmb3IgcCBpbiBlbnRyZWd1ZXMgaWYgcC5nZXQoImVudHJlZ3VlIix7fSkgYW5kIG5vdCBwWyJlbnRyZWd1ZSJdLmdldCgiZGVudHJvRCIpXQp2b2xfdG90YWwgPSBzdW0oZmxvYXQocFsidmFsb3IiXSkgZm9yIHAgaW4gYXRpdm9zKQp2b2xfZW50ICAgPSBzdW0oZmxvYXQocFsidmFsb3IiXSkgZm9yIHAgaW4gZW50cmVndWVzKQp2b2xfcGVuZCAgPSBzdW0oZmxvYXQocFsidmFsb3IiXSkgZm9yIHAgaW4gYXRpdm9zIGlmIGdldF9zdGF0dXMocCkhPSJlbnRyZWd1ZSIpCnBjdF9wcmF6byA9IChsZW4obm9fcHJhem8pL2xlbihlbnRyZWd1ZXMpKjEwMCkgaWYgZW50cmVndWVzIGVsc2UgMApuX2VkaXRzICAgPSBzdW0oMSBmb3IgcCBpbiBwYXltZW50cyBmb3IgaCBpbiBwLmdldCgiaGlzdG9yaWNvIixbXSkgaWYgaFsidGlwbyJdPT0iZWRpdCIpCgpkZWYgZm10X2JybCh2KToKICAgIHJldHVybiBmIlIkIHtmbG9hdCh2KTosLjJmfSIucmVwbGFjZSgiLCIsIlgiKS5yZXBsYWNlKCIuIiwiLCIpLnJlcGxhY2UoIlgiLCIuIikKCiMgTWVuc2FsCm1lc2VzX2RpY3QgPSB7fQpmb3IgcCBpbiBhdGl2b3M6CiAgICBkID0gcGFyc2VfZGF0ZShwWyJkYXRhIl0pCiAgICBrID0gKGQueWVhciwgZC5tb250aCkKICAgIGxibCA9IGQuc3RyZnRpbWUoIiViLyVZIikuY2FwaXRhbGl6ZSgpCiAgICBpZiBrIG5vdCBpbiBtZXNlc19kaWN0OgogICAgICAgIG1lc2VzX2RpY3Rba10gPSB7ImxibCI6bGJsLCJ0b3RhbCI6MCwiZW50IjowLCJhdHIiOjAsInBlbmQiOjAsInZhbG9yIjowLCJucCI6MCwiZnAiOjAsInZvbF9lbnQiOjB9CiAgICBtID0gbWVzZXNfZGljdFtrXQogICAgbVsidG90YWwiXSs9MTsgbVsidmFsb3IiXSs9ZmxvYXQocFsidmFsb3IiXSkKICAgIHMgPSBnZXRfc3RhdHVzKHApCiAgICBpZiBzPT0iZW50cmVndWUiOgogICAgICAgIG1bImVudCJdKz0xOyBtWyJ2b2xfZW50Il0rPWZsb2F0KHBbInZhbG9yIl0pCiAgICAgICAgaWYgcC5nZXQoImVudHJlZ3VlIix7fSkgYW5kIHBbImVudHJlZ3VlIl0uZ2V0KCJkZW50cm9EIik6IG1bIm5wIl0rPTEKICAgICAgICBlbHNlOiBtWyJmcCJdKz0xCiAgICBlbGlmIHM9PSJhdHJhc2FkbyI6IG1bImF0ciJdKz0xCiAgICBlbHNlOiBtWyJwZW5kIl0rPTEKbWVzZXMgPSBbbWVzZXNfZGljdFtrXSBmb3IgayBpbiBzb3J0ZWQobWVzZXNfZGljdC5rZXlzKCkpXQoKd2IgPSBXb3JrYm9vaygpCndiLnJlbW92ZSh3Yi5hY3RpdmUpCgojIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAojIEFCQSAxIOKAlCBDQVBBIEVYRUNVVElWQQojIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkApjcCA9IHdiLmNyZWF0ZV9zaGVldCgiQ2FwYSIpCmNwLnNoZWV0X3ZpZXcuc2hvd0dyaWRMaW5lcyA9IEZhbHNlCmNwLnNoZWV0X3ZpZXcuc2hvd1Jvd0NvbEhlYWRlcnMgPSBGYWxzZQoKIyBMYXJndXJhcyBlIGFsdHVyYXMKZm9yIGkgaW4gcmFuZ2UoMSwxMik6IGNwLmNvbHVtbl9kaW1lbnNpb25zW2dldF9jb2x1bW5fbGV0dGVyKGkpXS53aWR0aCA9IDE0CmNwLmNvbHVtbl9kaW1lbnNpb25zWyJBIl0ud2lkdGggPSAzCmNwLmNvbHVtbl9kaW1lbnNpb25zWyJLIl0ud2lkdGggPSAzCgpmb3IgciBpbiByYW5nZSgxLCA1NSk6CiAgICBjcC5yb3dfZGltZW5zaW9uc1tyXS5oZWlnaHQgPSAxOAoKIyBGdW5kbyBhenVsIGVzY3VybyBuYSBjYXBhIHRvZGEKZm9yIHJvdyBpbiBjcC5pdGVyX3Jvd3MobWluX3Jvdz0xLCBtYXhfcm93PTU0LCBtaW5fY29sPTEsIG1heF9jb2w9MTEpOgogICAgZm9yIGNlbGwgaW4gcm93OgogICAgICAgIGNlbGwuZmlsbCA9IEYoQVpVTF9FU0MpCgojIOKUgOKUgCBUT1BPIENPTSBHUkFESUVOVEUg4pSA4pSACmZvciByb3cgaW4gcmFuZ2UoMSwgNCk6CiAgICBmb3IgY29sIGluIHJhbmdlKDEsIDEyKToKICAgICAgICBjcC5jZWxsKHJvdz1yb3csIGNvbHVtbj1jb2wpLmZpbGwgPSBGKEFaVUxfRVNDKQoKY3Aucm93X2RpbWVuc2lvbnNbMV0uaGVpZ2h0ID0gOApjcC5yb3dfZGltZW5zaW9uc1syXS5oZWlnaHQgPSA4CgojIExpbmhhIGRlY29yYXRpdmEgZG91cmFkYQpmb3IgY29sIGluIHJhbmdlKDIsIDExKToKICAgIGNwLmNlbGwocm93PTMsIGNvbHVtbj1jb2wpLmZpbGwgPSBGKE9VUk8pCmNwLnJvd19kaW1lbnNpb25zWzNdLmhlaWdodCA9IDYKCiMg4pSA4pSAIFTDjVRVTE8gUFJJTkNJUEFMIOKUgOKUgApjcC5yb3dfZGltZW5zaW9uc1s1XS5oZWlnaHQgPSAxMApjcC5tZXJnZV9jZWxscygiQjY6SjgiKQpjcFsiQjYiXSA9ICJSRUxBVMOTUklPIEVYRUNVVElWTyIKY3BbIkI2Il0uZm9udCA9IEZvbnQyKGJvbGQ9VHJ1ZSwgc2l6ZT0yOCwgY29sb3I9QlJBTkNPLCBuYW1lPSJBcmlhbCIpCmNwWyJCNiJdLmFsaWdubWVudCA9IEEoImNlbnRlciIsImNlbnRlciIpCmNwWyJCNiJdLmZpbGwgPSBGKEFaVUxfRVNDKQpmb3IgciBpbiByYW5nZSg2LDkpOiBjcC5yb3dfZGltZW5zaW9uc1tyXS5oZWlnaHQgPSAyNAoKY3AubWVyZ2VfY2VsbHMoIkI5Oko5IikKY3BbIkI5Il0gPSAiQ09OVFJPTEUgREUgUFJFU1RBw4fDg08gREUgQ09OVEFTIOKAlCBDQVJUw4NPIENPUlBPUkFUSVZPIgpjcFsiQjkiXS5mb250ID0gRm9udDIoYm9sZD1GYWxzZSwgc2l6ZT0xMywgY29sb3I9T1VSTywgbmFtZT0iQXJpYWwiKQpjcFsiQjkiXS5hbGlnbm1lbnQgPSBBKCJjZW50ZXIiLCJjZW50ZXIiKQpjcFsiQjkiXS5maWxsID0gRihBWlVMX0VTQykKY3Aucm93X2RpbWVuc2lvbnNbOV0uaGVpZ2h0ID0gMjIKCiMg4pSA4pSAIExJTkhBIERPVVJBREEg4pSA4pSACmZvciBjb2wgaW4gcmFuZ2UoMiwxMSk6CiAgICBjcC5jZWxsKHJvdz0xMCwgY29sdW1uPWNvbCkuZmlsbCA9IEYoT1VSTykKY3Aucm93X2RpbWVuc2lvbnNbMTBdLmhlaWdodCA9IDQKCmNwLnJvd19kaW1lbnNpb25zWzExXS5oZWlnaHQgPSAxNgoKIyDilIDilIAgREFUQSBFIFBFUsONT0RPIOKUgOKUgApjcC5tZXJnZV9jZWxscygiQjEyOkoxMiIpCmNwWyJCMTIiXSA9IGYiUGVyw61vZG8gZGUgUmVmZXLDqm5jaWE6IMOabHRpbW9zIDMgTWVzZXMgIMK3ICBFbWl0aWRvIGVtOiB7dG9kYXkuc3RyZnRpbWUoJyVkIGRlICVCIGRlICVZJyl9IgpjcFsiQjEyIl0uZm9udCA9IEZvbnQyKGJvbGQ9RmFsc2UsIHNpemU9MTEsIGNvbG9yPSJBMEI0RDAiLCBpdGFsaWM9VHJ1ZSkKY3BbIkIxMiJdLmFsaWdubWVudCA9IEEoImNlbnRlciIsImNlbnRlciIpCmNwWyJCMTIiXS5maWxsID0gRihBWlVMX0VTQykKY3Aucm93X2RpbWVuc2lvbnNbMTJdLmhlaWdodCA9IDE4CgpjcC5yb3dfZGltZW5zaW9uc1sxM10uaGVpZ2h0ID0gMjAKCiMg4pSA4pSAIEtQSSBDQVJEUyDilIDilIAKZGVmIGtwaV9jYXJkX2NhcGEod3MsIHJvdywgY29sLCBpY29uLCB0aXR1bG8sIHZhbG9yLCBzdWIsIGNvcl9iZywgY29yX3ZhbCk6CiAgICAjIENhcmQgYmFja2dyb3VuZAogICAgd3MubWVyZ2VfY2VsbHMoZiJ7Z2V0X2NvbHVtbl9sZXR0ZXIoY29sKX17cm93fTp7Z2V0X2NvbHVtbl9sZXR0ZXIoY29sKzEpfXtyb3d9IikKICAgIHdzLm1lcmdlX2NlbGxzKGYie2dldF9jb2x1bW5fbGV0dGVyKGNvbCl9e3JvdysxfTp7Z2V0X2NvbHVtbl9sZXR0ZXIoY29sKzEpfXtyb3crMX0iKQogICAgd3MubWVyZ2VfY2VsbHMoZiJ7Z2V0X2NvbHVtbl9sZXR0ZXIoY29sKX17cm93KzJ9OntnZXRfY29sdW1uX2xldHRlcihjb2wrMSl9e3JvdysyfSIpCiAgICB3cy5tZXJnZV9jZWxscyhmIntnZXRfY29sdW1uX2xldHRlcihjb2wpfXtyb3crM306e2dldF9jb2x1bW5fbGV0dGVyKGNvbCsxKX17cm93KzN9IikKICAgIAogICAgIyBJY29uCiAgICBjX2ljb24gPSB3cy5jZWxsKHJvdz1yb3csIGNvbHVtbj1jb2wpCiAgICBjX2ljb24udmFsdWUgPSBpY29uCiAgICBjX2ljb24uZm9udCA9IEZvbnQyKHNpemU9MTYsIGNvbG9yPUJSQU5DTykKICAgIGNfaWNvbi5hbGlnbm1lbnQgPSBBKCJjZW50ZXIiLCJjZW50ZXIiKQogICAgY19pY29uLmZpbGwgPSBGKGNvcl9iZykKICAgIHdzLnJvd19kaW1lbnNpb25zW3Jvd10uaGVpZ2h0ID0gMjIKICAgIAogICAgIyBUaXR1bG8KICAgIGNfdGl0ID0gd3MuY2VsbChyb3c9cm93KzEsIGNvbHVtbj1jb2wpCiAgICBjX3RpdC52YWx1ZSA9IHRpdHVsbwogICAgY190aXQuZm9udCA9IEZvbnQyKGJvbGQ9RmFsc2UsIHNpemU9OSwgY29sb3I9IkEwQjREMCIpCiAgICBjX3RpdC5hbGlnbm1lbnQgPSBBKCJjZW50ZXIiLCJjZW50ZXIiKQogICAgY190aXQuZmlsbCA9IEYoY29yX2JnKQogICAgd3Mucm93X2RpbWVuc2lvbnNbcm93KzFdLmhlaWdodCA9IDE2CiAgICAKICAgICMgVmFsb3IKICAgIGNfdmFsID0gd3MuY2VsbChyb3c9cm93KzIsIGNvbHVtbj1jb2wpCiAgICBjX3ZhbC52YWx1ZSA9IHZhbG9yCiAgICBjX3ZhbC5mb250ID0gRm9udDIoYm9sZD1UcnVlLCBzaXplPTIwLCBjb2xvcj1jb3JfdmFsKQogICAgY192YWwuYWxpZ25tZW50ID0gQSgiY2VudGVyIiwiY2VudGVyIikKICAgIGNfdmFsLmZpbGwgPSBGKGNvcl9iZykKICAgIHdzLnJvd19kaW1lbnNpb25zW3JvdysyXS5oZWlnaHQgPSAyOAogICAgCiAgICAjIFN1YgogICAgY19zdWIgPSB3cy5jZWxsKHJvdz1yb3crMywgY29sdW1uPWNvbCkKICAgIGNfc3ViLnZhbHVlID0gc3ViCiAgICBjX3N1Yi5mb250ID0gRm9udDIoc2l6ZT04LCBjb2xvcj0iNzA4MDkwIiwgaXRhbGljPVRydWUpCiAgICBjX3N1Yi5hbGlnbm1lbnQgPSBBKCJjZW50ZXIiLCJjZW50ZXIiKQogICAgY19zdWIuZmlsbCA9IEYoY29yX2JnKQogICAgd3Mucm93X2RpbWVuc2lvbnNbcm93KzNdLmhlaWdodCA9IDE1CgpDQVJEX0JHID0gIjE2MkI0RCIKa3BpX2NhcmRfY2FwYShjcCwgMTQsIDIsICLwn5OLIiwgIlRPVEFMIERFIFBBR0FNRU5UT1MiLCBzdHIobGVuKGF0aXZvcykpLCBmIntsZW4oY2FuY2VsYWRvcyl9IGNhbmNlbGFkb3MiLCBDQVJEX0JHLCBCUkFOQ08pCmtwaV9jYXJkX2NhcGEoY3AsIDE0LCA0LCAi4pyFIiwgIkVOVFJFR1VFUyIsIHN0cihsZW4oZW50cmVndWVzKSksIGZtdF9icmwodm9sX2VudCksIENBUkRfQkcsICI0QURFODAiKQprcGlfY2FyZF9jYXBhKGNwLCAxNCwgNiwgIuKaoO+4jyIsICJBVFJBU0FET1MiLCBzdHIobGVuKGF0cmFzYWRvcykpLCBmIntsZW4ocGVuZGVudGVzKX0gcGVuZGVudGVzIiwgQ0FSRF9CRywgIkZDQTVBNSIgaWYgYXRyYXNhZG9zIGVsc2UgIjRBREU4MCIpCmtwaV9jYXJkX2NhcGEoY3AsIDE0LCA4LCAi8J+OryIsICJDT05GT1JNSURBREUiLCBmIntwY3RfcHJhem86LjBmfSUiLCBmIntsZW4obm9fcHJhem8pfSBubyBwcmF6byIsIENBUkRfQkcsICI0QURFODAiIGlmIHBjdF9wcmF6bz49ODAgZWxzZSAiRkNBNUE1IikKCmNwLnJvd19kaW1lbnNpb25zWzE4XS5oZWlnaHQgPSAxNAoKIyDilIDilIAgTElOSEEgU0VQQVJBRE9SQSDilIDilIAKZm9yIGNvbCBpbiByYW5nZSgyLDExKToKICAgIGNwLmNlbGwocm93PTE5LCBjb2x1bW49Y29sKS5maWxsID0gRigiMkE0QTdGIikKY3Aucm93X2RpbWVuc2lvbnNbMTldLmhlaWdodCA9IDIKCmNwLnJvd19kaW1lbnNpb25zWzIwXS5oZWlnaHQgPSAxNAoKIyDilIDilIAgVk9MVU1FUyDilIDilIAKa3BpX2NhcmRfY2FwYShjcCwgMjEsIDIsICLwn5KwIiwgIlZPTFVNRSBUT1RBTCAoUiQpIiwgZm10X2JybCh2b2xfdG90YWwpLCAiUGFnYW1lbnRvcyBhdGl2b3MiLCBDQVJEX0JHLCBCUkFOQ08pCmtwaV9jYXJkX2NhcGEoY3AsIDIxLCA0LCAi8J+SsyIsICJWQUxPUiBFTlRSRUdVRSAoUiQpIiwgZm10X2JybCh2b2xfZW50KSwgIlByZXN0YcOnw6NvIGNvbmNsdcOtZGEiLCBDQVJEX0JHLCAiNEFERTgwIikKa3BpX2NhcmRfY2FwYShjcCwgMjEsIDYsICLwn5S0IiwgIkEgUFJFU1RBUiAoUiQpIiwgZm10X2JybCh2b2xfcGVuZCksICJQZW5kZW50ZSBkZSBlbnRyZWdhIiwgQ0FSRF9CRywgIkZDQTVBNSIgaWYgdm9sX3BlbmQ+MCBlbHNlICI0QURFODAiKQprcGlfY2FyZF9jYXBhKGNwLCAyMSwgOCwgIuKcj++4jyIsICJFREnDh8OVRVMgUkVBTElaQURBUyIsIHN0cihuX2VkaXRzKSwgIlJlZ2lzdHJvcyBhbHRlcmFkb3MiLCBDQVJEX0JHLCAiOTNDNUZEIikKCmNwLnJvd19kaW1lbnNpb25zWzI1XS5oZWlnaHQgPSAyMAoKIyDilIDilIAgTElOSEEgRE9VUkFEQSBJTkZFUklPUiDilIDilIAKZm9yIGNvbCBpbiByYW5nZSgyLDExKToKICAgIGNwLmNlbGwocm93PTI2LCBjb2x1bW49Y29sKS5maWxsID0gRihPVVJPKQpjcC5yb3dfZGltZW5zaW9uc1syNl0uaGVpZ2h0ID0gNAoKY3Aucm93X2RpbWVuc2lvbnNbMjddLmhlaWdodCA9IDE0CgojIOKUgOKUgCDDjU5ESUNFIERBUyBBQkFTIOKUgOKUgApjcC5tZXJnZV9jZWxscygiQjI4OkoyOCIpCmNwWyJCMjgiXSA9ICJDT05URcOaRE8gREVTVEUgUkVMQVTDk1JJTyIKY3BbIkIyOCJdLmZvbnQgPSBGb250Mihib2xkPVRydWUsIHNpemU9MTEsIGNvbG9yPU9VUk8pCmNwWyJCMjgiXS5hbGlnbm1lbnQgPSBBKCJjZW50ZXIiLCJjZW50ZXIiKQpjcFsiQjI4Il0uZmlsbCA9IEYoQVpVTF9FU0MpCmNwLnJvd19kaW1lbnNpb25zWzI4XS5oZWlnaHQgPSAyMAoKYWJhcyA9IFsKICAgICgi8J+TiiAgRGFzaGJvYXJkIEV4ZWN1dGl2byIsICJJbmRpY2Fkb3Jlcy1jaGF2ZSwgZ3LDoWZpY29zIGRlIGRlc2VtcGVuaG8gZSBjb25mb3JtaWRhZGUiKSwKICAgICgi8J+TiyAgUGFnYW1lbnRvcyBEZXRhbGhhZG9zIiwgIlJlZ2lzdHJvIGNvbXBsZXRvIGRlIHRvZG9zIG9zIHBhZ2FtZW50b3MgY29tIHN0YXR1cyIpLAogICAgKCLwn5OFICBSZXN1bW8gTWVuc2FsIiwgIkNvbnNvbGlkYcOnw6NvIG1lbnNhbCBjb20gYW7DoWxpc2UgZGUgY29uZm9ybWlkYWRlIiksCiAgICAoIvCfmqggIFBlbmTDqm5jaWFzICYgQWxlcnRhcyIsICJQYWdhbWVudG9zIGF0cmFzYWRvcyBlIGHDp8O1ZXMgbmVjZXNzw6FyaWFzIiksCiAgICAoIvCflI0gIEF1ZGl0b3JpYSBDb21wbGV0YSIsICJIaXN0w7NyaWNvIGludGVncmFsIGRlIHRvZGFzIGFzIGFsdGVyYcOnw7VlcyByZWFsaXphZGFzIiksCl0KZm9yIGksIChhYmEsIGRlc2MpIGluIGVudW1lcmF0ZShhYmFzKToKICAgIHJvdyA9IDI5ICsgaSoyCiAgICBjcC5tZXJnZV9jZWxscyhmIkJ7cm93fTpEe3Jvd30iKQogICAgY3AuY2VsbChyb3c9cm93LCBjb2x1bW49MikudmFsdWUgPSBhYmEKICAgIGNwLmNlbGwocm93PXJvdywgY29sdW1uPTIpLmZvbnQgPSBGb250Mihib2xkPVRydWUsIHNpemU9MTAsIGNvbG9yPUJSQU5DTykKICAgIGNwLmNlbGwocm93PXJvdywgY29sdW1uPTIpLmFsaWdubWVudCA9IEEoImxlZnQiLCJjZW50ZXIiKQogICAgY3AuY2VsbChyb3c9cm93LCBjb2x1bW49MikuZmlsbCA9IEYoQVpVTF9FU0MpCiAgICBjcC5tZXJnZV9jZWxscyhmIkV7cm93fTpKe3Jvd30iKQogICAgY3AuY2VsbChyb3c9cm93LCBjb2x1bW49NSkudmFsdWUgPSBkZXNjCiAgICBjcC5jZWxsKHJvdz1yb3csIGNvbHVtbj01KS5mb250ID0gRm9udDIoc2l6ZT05LCBjb2xvcj0iQTBCNEQwIiwgaXRhbGljPVRydWUpCiAgICBjcC5jZWxsKHJvdz1yb3csIGNvbHVtbj01KS5hbGlnbm1lbnQgPSBBKCJsZWZ0IiwiY2VudGVyIikKICAgIGNwLmNlbGwocm93PXJvdywgY29sdW1uPTUpLmZpbGwgPSBGKEFaVUxfRVNDKQogICAgY3Aucm93X2RpbWVuc2lvbnNbcm93XS5oZWlnaHQgPSAxOAogICAgY3Aucm93X2RpbWVuc2lvbnNbcm93KzFdLmhlaWdodCA9IDQKCiMg4pSA4pSAIFJPREFQw4kg4pSA4pSACmZvciBjb2wgaW4gcmFuZ2UoMiwxMSk6CiAgICBjcC5jZWxsKHJvdz00MCwgY29sdW1uPWNvbCkuZmlsbCA9IEYoT1VSTykKY3Aucm93X2RpbWVuc2lvbnNbNDBdLmhlaWdodCA9IDQKCmNwLm1lcmdlX2NlbGxzKCJCNDE6SjQzIikKY3BbIkI0MSJdID0gKGYiRG9jdW1lbnRvIGRlIHVzbyByZXN0cml0byDigJQgRGlyZXRvcmlhXG4iCiAgICAgICAgICAgICBmIlNpc3RlbWEgZGUgQ29udHJvbGUgZGUgUHJlc3Rhw6fDo28gZGUgQ29udGFzIOKAlCBDYXJ0w6NvIENvcnBvcmF0aXZvXG4iCiAgICAgICAgICAgICBmIkdlcmFkbyBhdXRvbWF0aWNhbWVudGUgZW0ge3RvZGF5LnN0cmZ0aW1lKCclZC8lbS8lWScpfSIpCmNwWyJCNDEiXS5mb250ID0gRm9udDIoc2l6ZT05LCBjb2xvcj0iNzA4MDkwIiwgaXRhbGljPVRydWUpCmNwWyJCNDEiXS5hbGlnbm1lbnQgPSBBKCJjZW50ZXIiLCJjZW50ZXIiLCB3cmFwPVRydWUpCmNwWyJCNDEiXS5maWxsID0gRihBWlVMX0VTQykKZm9yIHIgaW4gcmFuZ2UoNDEsNDQpOiBjcC5yb3dfZGltZW5zaW9uc1tyXS5oZWlnaHQgPSAxNAoKIyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKIyBBQkEgMiDigJQgREFTSEJPQVJEIEVYRUNVVElWTwojIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkApkcyA9IHdiLmNyZWF0ZV9zaGVldCgiRGFzaGJvYXJkIEV4ZWN1dGl2byIpCmRzLnNoZWV0X3ZpZXcuc2hvd0dyaWRMaW5lcyA9IEZhbHNlCgojIExhcmd1cmFzCmNvbF93cyA9IHsiQSI6MiwiQiI6MTYsIkMiOjE0LCJEIjoxNCwiRSI6MTQsIkYiOjE0LCJHIjoxNCwiSCI6Mn0KZm9yIGNvbCwgdyBpbiBjb2xfd3MuaXRlbXMoKTogZHMuY29sdW1uX2RpbWVuc2lvbnNbY29sXS53aWR0aCA9IHcKCmRlZiBzZXRfY2VsbCh3cywgcmVmLCB2YWx1ZSwgYm9sZD1GYWxzZSwgc2l6ZT0xMSwgY29sb3I9IjAwMDAwMCIsIGJnPU5vbmUsIGhfYWxpZ249ImNlbnRlciIsIHZfYWxpZ249ImNlbnRlciIsIHdyYXA9RmFsc2UsIGl0YWxpYz1GYWxzZSwgYm9yZGVyPUZhbHNlLCBudW1fZm10PU5vbmUpOgogICAgaWYgIjoiIGluIHJlZjoKICAgICAgICB3cy5tZXJnZV9jZWxscyhyZWYpCiAgICAgICAgcmVmX2NlbGwgPSByZWYuc3BsaXQoIjoiKVswXQogICAgZWxzZToKICAgICAgICByZWZfY2VsbCA9IHJlZgogICAgYyA9IHdzW3JlZl9jZWxsXQogICAgYy52YWx1ZSA9IHZhbHVlCiAgICBjLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIiwgYm9sZD1ib2xkLCBzaXplPXNpemUsIGNvbG9yPWNvbG9yLCBpdGFsaWM9aXRhbGljKQogICAgaWYgYmc6IGMuZmlsbCA9IEYoYmcpCiAgICBjLmFsaWdubWVudCA9IEFsaWdubWVudChob3Jpem9udGFsPWhfYWxpZ24sIHZlcnRpY2FsPXZfYWxpZ24sIHdyYXBfdGV4dD13cmFwKQogICAgaWYgYm9yZGVyOiBjLmJvcmRlciA9IGJvcmRlcl9hbGwoKQogICAgaWYgbnVtX2ZtdDogYy5udW1iZXJfZm9ybWF0ID0gbnVtX2ZtdAogICAgcmV0dXJuIGMKCiMgVMOtdHVsbwpzZXRfY2VsbChkcywiQjE6RzEiLCJEQVNIQk9BUkQgRVhFQ1VUSVZPIOKAlCBQUkVTVEHDh8ODTyBERSBDT05UQVMiLFRydWUsMTQsQlJBTkNPLEFaVUxfRVNDLCJjZW50ZXIiLCJjZW50ZXIiKQpkcy5yb3dfZGltZW5zaW9uc1sxXS5oZWlnaHQgPSAyOApzZXRfY2VsbChkcywiQjI6RzIiLGYiUGVyw61vZG86IMOabHRpbW9zIDMgTWVzZXMgIMK3ICBFbWl0aWRvIGVtOiB7dG9kYXkuc3RyZnRpbWUoJyVkLyVtLyVZJyl9ICDCtyAgVXNvIHJlc3RyaXRvIOKAlCBEaXJldG9yaWEiLEZhbHNlLDksIkEwQjREMCIsQVpVTF9NRUQsImNlbnRlciIsImNlbnRlciIsaXRhbGljPVRydWUpCmRzLnJvd19kaW1lbnNpb25zWzJdLmhlaWdodCA9IDE2CmRzLnJvd19kaW1lbnNpb25zWzNdLmhlaWdodCA9IDgKCiMg4pSA4pSAIFNFw4fDg08gS1BJcyDilIDilIAKc2V0X2NlbGwoZHMsIkI0Okc0IiwiICBJTkRJQ0FET1JFUy1DSEFWRSBERSBERVNFTVBFTkhPIChLUElzKSIsVHJ1ZSwxMCxCUkFOQ08sQVpVTF9NRUQsImxlZnQiLCJjZW50ZXIiKQpkcy5yb3dfZGltZW5zaW9uc1s0XS5oZWlnaHQgPSAxOAoKZGVmIGtwaV9ibG9jayh3cywgcm93LCBjb2wsIHRpdHVsbywgdmFsb3IsIHN1YiwgY29yX2Z1bmRvLCBjb3JfdmFsb3IsIGNvcl9zdWIpOgogICAgY2wgPSBnZXRfY29sdW1uX2xldHRlcihjb2wpCiAgICBjbDIgPSBnZXRfY29sdW1uX2xldHRlcihjb2wrMSkKICAgIHdzLm1lcmdlX2NlbGxzKGYie2NsfXtyb3d9OntjbDJ9e3Jvd30iKQogICAgd3MubWVyZ2VfY2VsbHMoZiJ7Y2x9e3JvdysxfTp7Y2wyfXtyb3crMX0iKQogICAgd3MubWVyZ2VfY2VsbHMoZiJ7Y2x9e3JvdysyfTp7Y2wyfXtyb3crMn0iKQogICAgd3MubWVyZ2VfY2VsbHMoZiJ7Y2x9e3JvdyszfTp7Y2wyfXtyb3crM30iKQogICAgCiAgICB3cy5jZWxsKHJvdz1yb3csY29sdW1uPWNvbCx2YWx1ZT10aXR1bG8pLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixib2xkPVRydWUsc2l6ZT04LGNvbG9yPUJSQU5DTykKICAgIHdzLmNlbGwocm93PXJvdyxjb2x1bW49Y29sKS5maWxsID0gRihjb3JfZnVuZG8pOyB3cy5jZWxsKHJvdz1yb3csY29sdW1uPWNvbCkuYWxpZ25tZW50ID0gQSgpCiAgICB3cy5yb3dfZGltZW5zaW9uc1tyb3ddLmhlaWdodCA9IDE0CiAgICAKICAgIHdzLmNlbGwocm93PXJvdysxLGNvbHVtbj1jb2wsdmFsdWU9dmFsb3IpLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixib2xkPVRydWUsc2l6ZT0yMixjb2xvcj1jb3JfdmFsb3IpCiAgICB3cy5jZWxsKHJvdz1yb3crMSxjb2x1bW49Y29sKS5maWxsID0gRihjb3JfZnVuZG8pOyB3cy5jZWxsKHJvdz1yb3crMSxjb2x1bW49Y29sKS5hbGlnbm1lbnQgPSBBKCkKICAgIHdzLnJvd19kaW1lbnNpb25zW3JvdysxXS5oZWlnaHQgPSAzMAogICAgCiAgICB3cy5jZWxsKHJvdz1yb3crMixjb2x1bW49Y29sLHZhbHVlPXN1YikuZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLHNpemU9OCxjb2xvcj1jb3Jfc3ViLGl0YWxpYz1UcnVlKQogICAgd3MuY2VsbChyb3c9cm93KzIsY29sdW1uPWNvbCkuZmlsbCA9IEYoY29yX2Z1bmRvKTsgd3MuY2VsbChyb3c9cm93KzIsY29sdW1uPWNvbCkuYWxpZ25tZW50ID0gQSgpCiAgICB3cy5yb3dfZGltZW5zaW9uc1tyb3crMl0uaGVpZ2h0ID0gMTQKICAgIAogICAgIyBMaW5oYSBpbmZlcmlvciBkZWNvcmF0aXZhCiAgICBmb3IgYzIgaW4gcmFuZ2UoY29sLGNvbCsyKToKICAgICAgICB3cy5jZWxsKHJvdz1yb3crMyxjb2x1bW49YzIpLmZpbGwgPSBGKEFaVUxfTUVEIGlmIGNvcl9mdW5kbz09QVpVTF9FU0MgZWxzZSBWRVJERV9NRUQgaWYgY29yX2Z1bmRvPT1WRVJERV9FU0MgZWxzZSBWRVJNX01FRCBpZiBjb3JfZnVuZG89PVZFUk1fRVNDIGVsc2UgQU1BUl9NRUQpCiAgICB3cy5yb3dfZGltZW5zaW9uc1tyb3crM10uaGVpZ2h0ID0gNAoKa3BpX2Jsb2NrKGRzLDUsMiwiVE9UQUwgQVRJVk8iLGxlbihhdGl2b3MpLGYie2xlbihjYW5jZWxhZG9zKX0gY2FuY2VsYWRvcyIsQVpVTF9FU0MsQlJBTkNPLCJBMEI0RDAiKQprcGlfYmxvY2soZHMsNSw0LCJFTlRSRUdVRVMiLGxlbihlbnRyZWd1ZXMpLGZtdF9icmwodm9sX2VudCksVkVSREVfRVNDLCJBQUZGQ0MiLCI4MEMwQTAiKQprcGlfYmxvY2soZHMsNSw2LCJBVFJBU0FET1MgKCs0OGgpIixsZW4oYXRyYXNhZG9zKSxmIntsZW4ocGVuZGVudGVzKX0gcGVuZGVudGVzIixWRVJNX0VTQyBpZiBhdHJhc2Fkb3MgZWxzZSBWRVJERV9FU0MsIkZGQUFBQSIgaWYgYXRyYXNhZG9zIGVsc2UgIkFBRkZDQyIsIkZGOTA5MCIgaWYgYXRyYXNhZG9zIGVsc2UgIjgwQzA5MCIpCgpkcy5yb3dfZGltZW5zaW9uc1s5XS5oZWlnaHQgPSA4CgprcGlfYmxvY2soZHMsMTAsMiwiVk9MVU1FIFRPVEFMIixmbXRfYnJsKHZvbF90b3RhbCksIlBhZ2FtZW50b3MgYXRpdm9zIixBWlVMX0VTQyxCUkFOQ08sIkEwQjREMCIpCmtwaV9ibG9jayhkcywxMCw0LCJDT05GT1JNSURBREUiLGYie3BjdF9wcmF6bzouMGZ9JSIsZiJ7bGVuKG5vX3ByYXpvKX0gbm8gcHJhem8gwrcge2xlbihmb3JhX3ByYXpvKX0gZm9yYSIsVkVSREVfRVNDIGlmIHBjdF9wcmF6bz49ODAgZWxzZSBWRVJNX0VTQywiQUFGRkNDIiBpZiBwY3RfcHJhem8+PTgwIGVsc2UgIkZGQUFBQSIsIjgwQzBBMCIgaWYgcGN0X3ByYXpvPj04MCBlbHNlICJGRjkwOTAiKQprcGlfYmxvY2soZHMsMTAsNiwiQSBQUkVTVEFSIixmbXRfYnJsKHZvbF9wZW5kKSwiUGVuZGVudGUgZGUgZW50cmVnYSIsVkVSTV9FU0MgaWYgdm9sX3BlbmQ+MCBlbHNlIFZFUkRFX0VTQywiRkZBQUFBIiBpZiB2b2xfcGVuZD4wIGVsc2UgIkFBRkZDQyIsIkZGOTA5MCIgaWYgdm9sX3BlbmQ+MCBlbHNlICI4MEMwOTAiKQoKZHMucm93X2RpbWVuc2lvbnNbMTRdLmhlaWdodCA9IDEyCgojIOKUgOKUgCBUQUJFTEEgU1RBVFVTIOKUgOKUgApzZXRfY2VsbChkcywiQjE1OkcxNSIsIiAgQ09NUE9TScOHw4NPIFBPUiBTVEFUVVMiLFRydWUsMTAsQlJBTkNPLEFaVUxfTUVELCJsZWZ0IiwiY2VudGVyIikKZHMucm93X2RpbWVuc2lvbnNbMTVdLmhlaWdodCA9IDE4CgpoZHJzID0gWyJTVEFUVVMiLCJRVEQiLCJWT0xVTUUgKFIkKSIsIiUgUVRERSIsIiUgVk9MVU1FIiwiU0lUVUHDh8ODTyJdCmZvciBjaSxoIGluIGVudW1lcmF0ZShoZHJzLDIpOgogICAgYyA9IGRzLmNlbGwocm93PTE2LGNvbHVtbj1jaSx2YWx1ZT1oKQogICAgYy5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsYm9sZD1UcnVlLHNpemU9OSxjb2xvcj1CUkFOQ08pCiAgICBjLmZpbGwgPSBGKEFaVUxfRVNDKTsgYy5hbGlnbm1lbnQgPSBBKCk7IGMuYm9yZGVyID0gYm9yZGVyX2FsbCgpCmRzLnJvd19kaW1lbnNpb25zWzE2XS5oZWlnaHQgPSAxOAoKc3RhdHVzX3Jvd3MgPSBbCiAgICAoIuKchSAgRW50cmVndWVzIG5vIHByYXpvIixsZW4obm9fcHJhem8pLHN1bShmbG9hdChwWyJ2YWxvciJdKSBmb3IgcCBpbiBub19wcmF6byksVkVSREVfQ0wsVkVSREVfRVNDKSwKICAgICgi4pqg77iPICBFbnRyZWd1ZXMgZm9yYSBwcmF6byIsbGVuKGZvcmFfcHJhem8pLHN1bShmbG9hdChwWyJ2YWxvciJdKSBmb3IgcCBpbiBmb3JhX3ByYXpvKSxBTUFSX0NMLEFNQVJfRVNDKSwKICAgICgi8J+VkCAgUGVuZGVudGVzIixsZW4ocGVuZGVudGVzKSxzdW0oZmxvYXQocFsidmFsb3IiXSkgZm9yIHAgaW4gcGVuZGVudGVzKSxBWlVMX0NMLEFaVUxfRVNDKSwKICAgICgi8J+UtCAgQXRyYXNhZG9zICgrNDhoKSIsbGVuKGF0cmFzYWRvcyksc3VtKGZsb2F0KHBbInZhbG9yIl0pIGZvciBwIGluIGF0cmFzYWRvcyksVkVSTV9DTCxWRVJNX0VTQyksCiAgICAoIuKdjCAgQ2FuY2VsYWRvcyIsbGVuKGNhbmNlbGFkb3MpLDAsQ0lOWkFfQ0wsQ0lOWkFfRVNDKSwKXQpmb3IgcmksKGxibCxxdGQsdm9sLGJnLGNvcikgaW4gZW51bWVyYXRlKHN0YXR1c19yb3dzKToKICAgIHJvdyA9IDE3K3JpCiAgICBiZzIgPSBDSU5aQV9BTFQgaWYgcmklMj09MSBlbHNlIEJSQU5DTwogICAgcGN0X3EgPSBmIntxdGQvbWF4KGxlbihwYXltZW50cyksMSkqMTAwOi4xZn0lIgogICAgcGN0X3YgPSBmInt2b2wvbWF4KHZvbF90b3RhbCwwLjAxKSoxMDA6LjFmfSUiCiAgICBzaXQgPSAi4pyFIENvbmZvcm1lIiBpZiAicHJhem8iIGluIGxibCBhbmQgImZvcmEiIG5vdCBpbiBsYmwgYW5kIHF0ZD4wIGVsc2UgKCLimqDvuI8gQXRlbsOnw6NvIiBpZiAiZm9yYSIgaW4gbGJsIGFuZCBxdGQ+MCBlbHNlICgi8J+UtCBDcsOtdGljbyIgaWYgIkF0cmFzYSIgaW4gbGJsIGFuZCBxdGQ+MCBlbHNlICLigJQiKSkKICAgIHZhbHMgPSBbbGJsLHF0ZCxmbXRfYnJsKHZvbCkscGN0X3EscGN0X3Ysc2l0XQogICAgZm9yIGNpLHYgaW4gZW51bWVyYXRlKHZhbHMsMik6CiAgICAgICAgYyA9IGRzLmNlbGwocm93PXJvdyxjb2x1bW49Y2ksdmFsdWU9dikKICAgICAgICBjLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixib2xkPShjaT09Miksc2l6ZT05LGNvbG9yPWNvciBpZiBjaT09MiBlbHNlICIwMDAwMDAiKQogICAgICAgIGMuZmlsbCA9IEYoYmcgaWYgY2k9PTIgZWxzZSBiZzIpCiAgICAgICAgYy5hbGlnbm1lbnQgPSBBKCJsZWZ0IiBpZiBjaT09MiBlbHNlICJjZW50ZXIiKTsgYy5ib3JkZXIgPSBib3JkZXJfYWxsKCkKICAgIGRzLnJvd19kaW1lbnNpb25zW3Jvd10uaGVpZ2h0ID0gMTYKCiMgVG90YWwKdHIgPSAyMgpmb3IgY2ksdiBpbiBlbnVtZXJhdGUoWyJUT1RBTCIsbGVuKGF0aXZvcyksZm10X2JybCh2b2xfdG90YWwpLCIxMDAlIiwiMTAwJSIsIiJdLDIpOgogICAgYyA9IGRzLmNlbGwocm93PXRyLGNvbHVtbj1jaSx2YWx1ZT12KQogICAgYy5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsYm9sZD1UcnVlLHNpemU9OSxjb2xvcj1CUkFOQ08pCiAgICBjLmZpbGwgPSBGKEFaVUxfRVNDKTsgYy5hbGlnbm1lbnQgPSBBKCJjZW50ZXIiKTsgYy5ib3JkZXIgPSBib3JkZXJfYWxsKCkKZHMucm93X2RpbWVuc2lvbnNbdHJdLmhlaWdodCA9IDE4Cgpkcy5yb3dfZGltZW5zaW9uc1syM10uaGVpZ2h0ID0gMTAKCiMg4pSA4pSAIERBRE9TIFBBUkEgR1LDgUZJQ09TIOKUgOKUgApzZXRfY2VsbChkcywiQjI0OkcyNCIsIiAgREVTRU1QRU5ITyBNRU5TQUwiLFRydWUsMTAsQlJBTkNPLEFaVUxfTUVELCJsZWZ0IiwiY2VudGVyIikKZHMucm93X2RpbWVuc2lvbnNbMjRdLmhlaWdodCA9IDE4CgojIERhZG9zIG1lbnNhaXMKbWVzX2hkcnMgPSBbIk3DilMiLCJUT1RBTCIsIkVOVFJFR1VFUyIsIk5PIFBSQVpPIiwiRk9SQSBQUkFaTyIsIlZPTFVNRSAoUiQpIl0KZm9yIGNpLGggaW4gZW51bWVyYXRlKG1lc19oZHJzLDIpOgogICAgYyA9IGRzLmNlbGwocm93PTI1LGNvbHVtbj1jaSx2YWx1ZT1oKQogICAgYy5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsYm9sZD1UcnVlLHNpemU9OSxjb2xvcj1CUkFOQ08pCiAgICBjLmZpbGwgPSBGKEFaVUxfRVNDKTsgYy5hbGlnbm1lbnQgPSBBKCk7IGMuYm9yZGVyID0gYm9yZGVyX2FsbCgpCmRzLnJvd19kaW1lbnNpb25zWzI1XS5oZWlnaHQgPSAxNgoKZm9yIHJpLG0gaW4gZW51bWVyYXRlKG1lc2VzKToKICAgIHJvdyA9IDI2K3JpCiAgICBiZyA9IENJTlpBX0FMVCBpZiByaSUyPT0xIGVsc2UgQlJBTkNPCiAgICBjb25mX3BjdCA9IGYie21bJ25wJ10vbWF4KG1bJ2VudCddLDEpKjEwMDouMGZ9JSIgaWYgbVsnZW50J10gZWxzZSAi4oCUIgogICAgdmFscyA9IFttWyJsYmwiXSxtWyJ0b3RhbCJdLG1bImVudCJdLG1bIm5wIl0sbVsiZnAiXSxyb3VuZChtWyJ2YWxvciJdLDIpXQogICAgZm9yIGNpLHYgaW4gZW51bWVyYXRlKHZhbHMsMik6CiAgICAgICAgYyA9IGRzLmNlbGwocm93PXJvdyxjb2x1bW49Y2ksdmFsdWU9dikKICAgICAgICBjLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixzaXplPTksY29sb3I9VkVSTV9NRUQgaWYgY2k9PTYgYW5kIGlzaW5zdGFuY2UodixpbnQpIGFuZCB2PjAgZWxzZSAiMDAwMDAwIikKICAgICAgICBjLmZpbGwgPSBGKGJnKTsgYy5hbGlnbm1lbnQgPSBBKCJsZWZ0IiBpZiBjaT09MiBlbHNlICJjZW50ZXIiIGlmIGNpPDcgZWxzZSAicmlnaHQiKTsgYy5ib3JkZXIgPSBib3JkZXJfYWxsKCkKICAgICAgICBpZiBjaT09NiBhbmQgaXNpbnN0YW5jZSh2LGZsb2F0KTogYy5udW1iZXJfZm9ybWF0ID0gJyMsIyMwLjAwJwogICAgZHMucm93X2RpbWVuc2lvbnNbcm93XS5oZWlnaHQgPSAxNQoKdHJvdyA9IDI2K2xlbihtZXNlcykKZm9yIGNpLHYgaW4gZW51bWVyYXRlKFsiVE9UQUwiLGxlbihhdGl2b3MpLGxlbihlbnRyZWd1ZXMpLGxlbihub19wcmF6byksbGVuKGZvcmFfcHJhem8pLHJvdW5kKHZvbF90b3RhbCwyKV0sMik6CiAgICBjID0gZHMuY2VsbChyb3c9dHJvdyxjb2x1bW49Y2ksdmFsdWU9dikKICAgIGMuZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLGJvbGQ9VHJ1ZSxzaXplPTksY29sb3I9QlJBTkNPKQogICAgYy5maWxsID0gRihBWlVMX0VTQyk7IGMuYWxpZ25tZW50ID0gQSgiY2VudGVyIik7IGMuYm9yZGVyID0gYm9yZGVyX2FsbCgpCiAgICBpZiBjaT09NzogYy5udW1iZXJfZm9ybWF0PScjLCMjMC4wMCcKZHMucm93X2RpbWVuc2lvbnNbdHJvd10uaGVpZ2h0ID0gMTgKCiMg4pSA4pSAIEdSw4FGSUNPIERFIEJBUlJBUyDilIDilIAKYmFyID0gQmFyQ2hhcnQoKQpiYXIudHlwZSA9ICJjb2wiOyBiYXIuc3R5bGUgPSAyCmJhci50aXRsZSA9ICJWb2x1bWUgTWVuc2FsIChSJCkg4oCUIEVudHJlZ3VlIHZzLiBFbSBBYmVydG8iCmJhci55X2F4aXMudGl0bGUgPSAiVmFsb3IgKFIkKSIKYmFyLnhfYXhpcy50aXRsZSA9ICJNw6pzIgpiYXIud2lkdGggPSAxODsgYmFyLmhlaWdodCA9IDEyCmJhci5ncm91cGluZyA9ICJjbHVzdGVyZWQiCmJhci5vdmVybGFwID0gMAoKY2F0cyA9IFJlZmVyZW5jZShkcywgbWluX2NvbD0yLCBtaW5fcm93PTI2LCBtYXhfcm93PTI1K2xlbihtZXNlcykpCmJhcl9lbnQgPSBSZWZlcmVuY2UoZHMsIG1pbl9jb2w9NCwgbWluX3Jvdz0yNSwgbWF4X3Jvdz0yNStsZW4obWVzZXMpKQpiYXIuYWRkX2RhdGEoYmFyX2VudCwgdGl0bGVzX2Zyb21fZGF0YT1UcnVlKQpiYXIuc2V0X2NhdGVnb3JpZXMoY2F0cykKYmFyLnNlcmllc1swXS5ncmFwaGljYWxQcm9wZXJ0aWVzLnNvbGlkRmlsbCA9ICIyRTc1QjYiCmJhci5zZXJpZXNbMF0uZ3JhcGhpY2FsUHJvcGVydGllcy5saW5lLnNvbGlkRmlsbCA9ICIxRjM4NjQiCmRzLmFkZF9jaGFydChiYXIsICJCIiArIHN0cih0cm93KzIpKQoKIyDilIDilIAgR1LDgUZJQ08gUElaWkEgQ09ORk9STUlEQURFIOKUgOKUgApwaWVfZGF0YV9zdGFydCA9IHRyb3cgKyAxNgpwaWVfbGFiZWxzX2RhdGEgPSBbWyJObyBwcmF6byIsbGVuKG5vX3ByYXpvKV0sWyJGb3JhIHByYXpvIixsZW4oZm9yYV9wcmF6byldLFsiUGVuZGVudGVzIixsZW4ocGVuZGVudGVzKV0sWyJBdHJhc2Fkb3MiLGxlbihhdHJhc2Fkb3MpXV0KZm9yIGksKGxibCx2YWwpIGluIGVudW1lcmF0ZShwaWVfbGFiZWxzX2RhdGEpOgogICAgZHMuY2VsbChyb3c9cGllX2RhdGFfc3RhcnQraSwgY29sdW1uPTIsIHZhbHVlPWxibCkuZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLHNpemU9OCkKICAgIGRzLmNlbGwocm93PXBpZV9kYXRhX3N0YXJ0K2ksIGNvbHVtbj0zLCB2YWx1ZT12YWwpLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixzaXplPTgpCgpwaWUgPSBQaWVDaGFydCgpCnBpZS50aXRsZSA9ICJEaXN0cmlidWnDp8OjbyBwb3IgU3RhdHVzICglKSIKcGllLnN0eWxlID0gMgpwaWUud2lkdGggPSAxNDsgcGllLmhlaWdodCA9IDEwCnBpZV9sYWJlbHMgPSBSZWZlcmVuY2UoZHMsIG1pbl9jb2w9MiwgbWluX3Jvdz1waWVfZGF0YV9zdGFydCwgbWF4X3Jvdz1waWVfZGF0YV9zdGFydCszKQpwaWVfdmFscyA9IFJlZmVyZW5jZShkcywgbWluX2NvbD0zLCBtaW5fcm93PXBpZV9kYXRhX3N0YXJ0LCBtYXhfcm93PXBpZV9kYXRhX3N0YXJ0KzMpCnBpZS5hZGRfZGF0YShwaWVfdmFscykKcGllLnNldF9jYXRlZ29yaWVzKHBpZV9sYWJlbHMpCmNvbG9yc19waWUgPSBbVkVSREVfTUVELCBBTUFSX01FRCwgQVpVTF9NRUQsIFZFUk1fTUVEXQpmb3IgaWR4LCBjb2xvciBpbiBlbnVtZXJhdGUoY29sb3JzX3BpZSk6CiAgICBwdCA9IERhdGFQb2ludChpZHg9aWR4KQogICAgcHQuZ3JhcGhpY2FsUHJvcGVydGllcy5zb2xpZEZpbGwgPSBjb2xvcgogICAgcGllLnNlcmllc1swXS5kUHQuYXBwZW5kKHB0KQpkcy5hZGRfY2hhcnQocGllLCAiRSIgKyBzdHIodHJvdysyKSkKCiMg4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQCiMgQUJBIDMg4oCUIFBBR0FNRU5UT1MgREVUQUxIQURPUwojIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkApwcyA9IHdiLmNyZWF0ZV9zaGVldCgiUGFnYW1lbnRvcyBEZXRhbGhhZG9zIikKcHMuc2hlZXRfdmlldy5zaG93R3JpZExpbmVzID0gRmFsc2UKCmNvbF93aWR0aHNfcCA9IFs0LDUsMjAsMTgsMTUsMTIsMTIsMTQsMTQsMTgsMTgsMTQsMjBdCmhkcnNfcCA9IFsiIiwiSUQiLCJEZXNjcmnDp8OjbyIsIkZvcm5lY2Vkb3IiLCJDYXJ0w6NvIiwiRGF0YSBQZ3RvIiwiUHJhem8gNDhoIiwiU3RhdHVzIiwiVmFsb3IgKFIkKSIsIlNldG9yIFJlY2ViZWRvciIsIlF1ZW0gUmVjZWJldSIsIkRhdGEgRW50cmVnYSIsIkRlbnRybyBQcmF6byJdCmZvciBpLCh3LGgpIGluIGVudW1lcmF0ZSh6aXAoY29sX3dpZHRoc19wLGhkcnNfcCksMSk6CiAgICBwcy5jb2x1bW5fZGltZW5zaW9uc1tnZXRfY29sdW1uX2xldHRlcihpKV0ud2lkdGggPSB3CgojIFTDrXR1bG8KcHMubWVyZ2VfY2VsbHMoZiJCMTp7Z2V0X2NvbHVtbl9sZXR0ZXIobGVuKGhkcnNfcCkpfTEiKQpwc1siQjEiXSA9ICJQQUdBTUVOVE9TIERFVEFMSEFET1MiCnBzWyJCMSJdLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixib2xkPVRydWUsc2l6ZT0xNCxjb2xvcj1CUkFOQ08pCnBzWyJCMSJdLmZpbGwgPSBGKEFaVUxfRVNDKTsgcHNbIkIxIl0uYWxpZ25tZW50ID0gQSgpOyBwcy5yb3dfZGltZW5zaW9uc1sxXS5oZWlnaHQgPSAyOAoKcHMubWVyZ2VfY2VsbHMoZiJCMjp7Z2V0X2NvbHVtbl9sZXR0ZXIobGVuKGhkcnNfcCkpfTIiKQpwc1siQjIiXSA9IGYiVG90YWwgZGUgcmVnaXN0cm9zOiB7bGVuKHBheW1lbnRzKX0gIMK3ICBHZXJhZG8gZW06IHt0b2RheS5zdHJmdGltZSgnJWQvJW0vJVknKX0gIMK3ICBVc28gcmVzdHJpdG8g4oCUIERpcmV0b3JpYSIKcHNbIkIyIl0uZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLHNpemU9OSxjb2xvcj1CUkFOQ08saXRhbGljPVRydWUpCnBzWyJCMiJdLmZpbGwgPSBGKEFaVUxfTUVEKTsgcHNbIkIyIl0uYWxpZ25tZW50ID0gQSgpOyBwcy5yb3dfZGltZW5zaW9uc1syXS5oZWlnaHQgPSAxNgpwcy5yb3dfZGltZW5zaW9uc1szXS5oZWlnaHQgPSA2Cgpmb3IgY2ksaCBpbiBlbnVtZXJhdGUoaGRyc19wLDEpOgogICAgYyA9IHBzLmNlbGwocm93PTQsY29sdW1uPWNpLHZhbHVlPWggaWYgY2k+MSBlbHNlICIiKQogICAgaWYgY2k+MToKICAgICAgICBjLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixib2xkPVRydWUsc2l6ZT05LGNvbG9yPUJSQU5DTykKICAgICAgICBjLmZpbGwgPSBGKEFaVUxfRVNDKTsgYy5hbGlnbm1lbnQgPSBBKHdyYXA9VHJ1ZSk7IGMuYm9yZGVyID0gYm9yZGVyX2FsbCgpCnBzLnJvd19kaW1lbnNpb25zWzRdLmhlaWdodCA9IDE4CnBzLmZyZWV6ZV9wYW5lcyA9ICJCNSIKClNUQVRVU19CRyAgPSB7ImVudHJlZ3VlIjpWRVJERV9DTCwiYXRyYXNhZG8iOlZFUk1fQ0wsInBlbmRlbnRlIjpBTUFSX0NMLCJjYW5jZWxhZG8iOkNJTlpBX0NMfQpTVEFUVVNfQ09SID0geyJlbnRyZWd1ZSI6VkVSREVfRVNDLCJhdHJhc2FkbyI6VkVSTV9FU0MsInBlbmRlbnRlIjpBTUFSX0VTQywiY2FuY2VsYWRvIjpDSU5aQV9FU0N9ClNUQVRVU19MQkwgPSB7ImVudHJlZ3VlIjoi4pyFIEVudHJlZ3VlIiwiYXRyYXNhZG8iOiLwn5S0IEF0cmFzYWRvIiwicGVuZGVudGUiOiLwn5WQIFBlbmRlbnRlIiwiY2FuY2VsYWRvIjoi4p2MIENhbmNlbGFkbyJ9Cgpzb3J0ZWRfcCA9IHNvcnRlZChwYXltZW50cywga2V5PWxhbWJkYSBwOiBwWyJkYXRhIl0sIHJldmVyc2U9VHJ1ZSkKZm9yIHJpLHAgaW4gZW51bWVyYXRlKHNvcnRlZF9wKToKICAgIHJvdyA9IDUrcmkKICAgIHMgPSBnZXRfc3RhdHVzKHApOyBlID0gcC5nZXQoImVudHJlZ3VlIikgb3Ige30KICAgIGJnID0gQ0lOWkFfQUxUIGlmIHJpJTI9PTEgZWxzZSBCUkFOQ08KICAgIHNiZyA9IFNUQVRVU19CRy5nZXQocyxCUkFOQ08pCiAgICBzY29yID0gU1RBVFVTX0NPUi5nZXQocywiMDAwMDAwIikKICAgIHByYXpvX3N0ciA9IHByYXpvNDgocFsiZGF0YSJdKS5zdHJmdGltZSgiJWQvJW0vJVkiKQogICAgZGVudHJvID0gKCLinIUgU2ltIiBpZiBlLmdldCgiZGVudHJvRCIpIGVsc2UgIuKaoO+4jyBOw6NvIikgaWYgZS5nZXQoImRhdGFFbnRyZWdhIikgZWxzZSAi4oCUIgogICAgdmFscyA9IFsiIixwWyJpZCJdLHAuZ2V0KCJkZXNjIiwiIikscC5nZXQoImZvcm4iLCIiKSxwLmdldCgiY2FydGFvIiwiIiksCiAgICAgICAgICAgIHBhcnNlX2RhdGUocFsiZGF0YSJdKS5zdHJmdGltZSgiJWQvJW0vJVkiKSxwcmF6b19zdHIsCiAgICAgICAgICAgIFNUQVRVU19MQkwuZ2V0KHMscyksZmxvYXQocC5nZXQoInZhbG9yIiwwKSksCiAgICAgICAgICAgIGUuZ2V0KCJzZXRvciIsIiIpLGUuZ2V0KCJwZXNzb2EiLCIiKSwKICAgICAgICAgICAgcGFyc2VfZGF0ZShlWyJkYXRhRW50cmVnYSJdKS5zdHJmdGltZSgiJWQvJW0vJVkiKSBpZiBlLmdldCgiZGF0YUVudHJlZ2EiKSBlbHNlICLigJQiLGRlbnRyb10KICAgIGZvciBjaSx2IGluIGVudW1lcmF0ZSh2YWxzLDEpOgogICAgICAgIGMgPSBwcy5jZWxsKHJvdz1yb3csY29sdW1uPWNpLHZhbHVlPXYpCiAgICAgICAgaWYgY2k9PTE6CiAgICAgICAgICAgIGMuZmlsbCA9IEYoc2JnKTsgY29udGludWUKICAgICAgICBjLmJvcmRlciA9IGJvcmRlcl9hbGwoKQogICAgICAgIGlmIGNpPT04OiAgIyBTdGF0dXMKICAgICAgICAgICAgYy5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsYm9sZD1UcnVlLHNpemU9OSxjb2xvcj1zY29yKQogICAgICAgICAgICBjLmZpbGwgPSBGKHNiZyk7IGMuYWxpZ25tZW50ID0gQSgpCiAgICAgICAgZWxpZiBjaT09OTogICMgVmFsb3IKICAgICAgICAgICAgYy5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsYm9sZD1UcnVlLHNpemU9OSkKICAgICAgICAgICAgYy5maWxsID0gRihiZyk7IGMubnVtYmVyX2Zvcm1hdD0nIywjIzAuMDAnOyBjLmFsaWdubWVudCA9IEEoInJpZ2h0IikKICAgICAgICBlbGlmIGNpPT0xMzogICMgRGVudHJvIHByYXpvCiAgICAgICAgICAgIGNvcjEzID0gVkVSREVfRVNDIGlmICJTaW0iIGluIHN0cih2KSBlbHNlIChWRVJNX0VTQyBpZiAiTsOjbyIgaW4gc3RyKHYpIGVsc2UgQ0lOWkFfRVNDKQogICAgICAgICAgICBjLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixib2xkPVRydWUsc2l6ZT05LGNvbG9yPWNvcjEzKQogICAgICAgICAgICBjLmZpbGwgPSBGKFZFUkRFX0NMIGlmICJTaW0iIGluIHN0cih2KSBlbHNlIChWRVJNX0NMIGlmICJOw6NvIiBpbiBzdHIodikgZWxzZSBiZykpOyBjLmFsaWdubWVudCA9IEEoKQogICAgICAgIGVsc2U6CiAgICAgICAgICAgIGMuZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLHNpemU9OSkKICAgICAgICAgICAgYy5maWxsID0gRihiZyk7IGMuYWxpZ25tZW50ID0gQSgibGVmdCIgaWYgY2kgaW4oMyw0LDUpIGVsc2UgImNlbnRlciIpCiAgICBwcy5yb3dfZGltZW5zaW9uc1tyb3ddLmhlaWdodCA9IDE1CgojIFRvdGFsIHJvdwp0ciA9IDUrbGVuKHNvcnRlZF9wKQpwcy5tZXJnZV9jZWxscyhmIkJ7dHJ9Okh7dHJ9IikKcHNbZiJCe3RyfSJdID0gZiJUT1RBTCAgKHtsZW4oYXRpdm9zKX0gcmVnaXN0cm9zIGF0aXZvcyAgwrcgIHtsZW4oY2FuY2VsYWRvcyl9IGNhbmNlbGFkb3MpIgpwc1tmIkJ7dHJ9Il0uZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLGJvbGQ9VHJ1ZSxzaXplPTksY29sb3I9QlJBTkNPKQpwc1tmIkJ7dHJ9Il0uZmlsbCA9IEYoQVpVTF9FU0MpOyBwc1tmIkJ7dHJ9Il0uYWxpZ25tZW50ID0gQSgibGVmdCIpOyBwc1tmIkJ7dHJ9Il0uYm9yZGVyID0gYm9yZGVyX2FsbCgpCnBzLmNlbGwocm93PXRyLGNvbHVtbj05KS52YWx1ZSA9IHZvbF90b3RhbApwcy5jZWxsKHJvdz10cixjb2x1bW49OSkuZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLGJvbGQ9VHJ1ZSxzaXplPTksY29sb3I9QlJBTkNPKQpwcy5jZWxsKHJvdz10cixjb2x1bW49OSkuZmlsbCA9IEYoQVpVTF9FU0MpCnBzLmNlbGwocm93PXRyLGNvbHVtbj05KS5udW1iZXJfZm9ybWF0ID0gJyMsIyMwLjAwJwpwcy5jZWxsKHJvdz10cixjb2x1bW49OSkuYWxpZ25tZW50ID0gQSgicmlnaHQiKQpwcy5jZWxsKHJvdz10cixjb2x1bW49OSkuYm9yZGVyID0gYm9yZGVyX2FsbCgpCmZvciBjaSBpbiByYW5nZSgxMCwxNCk6CiAgICBwcy5jZWxsKHJvdz10cixjb2x1bW49Y2kpLmZpbGwgPSBGKEFaVUxfRVNDKQogICAgcHMuY2VsbChyb3c9dHIsY29sdW1uPWNpKS5ib3JkZXIgPSBib3JkZXJfYWxsKCkKcHMucm93X2RpbWVuc2lvbnNbdHJdLmhlaWdodCA9IDE4CgojIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAojIEFCQSA0IOKAlCBSRVNVTU8gTUVOU0FMCiMg4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQCm1zID0gd2IuY3JlYXRlX3NoZWV0KCJSZXN1bW8gTWVuc2FsIikKbXMuc2hlZXRfdmlldy5zaG93R3JpZExpbmVzID0gRmFsc2UKCmhkcnNfbSA9IFsiTcOKUyIsIlRPVEFMIiwiRU5UUkVHVUVTIiwiTk8gUFJBWk8iLCJGT1JBIFBSQVpPIiwiUEVOREVOVEVTIiwiQVRSQVNBRE9TIiwiVk9MVU1FIFRPVEFMIChSJCkiLCJWT0wuIEVOVFJFR1VFIChSJCkiLCJDT05GT1JNSURBREUgKCUpIl0KY29sX3dzX20gPSBbMiwxNCwxMiwxMiwxMiwxMiwxMiwxMiwxOCwxOCwxNF0KZm9yIGksKHcsaCkgaW4gZW51bWVyYXRlKHppcChjb2xfd3NfbSxbIiJdICsgaGRyc19tKSwxKToKICAgIG1zLmNvbHVtbl9kaW1lbnNpb25zW2dldF9jb2x1bW5fbGV0dGVyKGkpXS53aWR0aCA9IHcKCm1zLm1lcmdlX2NlbGxzKGYiQjE6e2dldF9jb2x1bW5fbGV0dGVyKGxlbihoZHJzX20pKzEpfTEiKQptc1siQjEiXSA9ICJSRVNVTU8gTUVOU0FMIOKAlCBQUkVTVEHDh8ODTyBERSBDT05UQVMiCm1zWyJCMSJdLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixib2xkPVRydWUsc2l6ZT0xNCxjb2xvcj1CUkFOQ08pCm1zWyJCMSJdLmZpbGwgPSBGKEFaVUxfRVNDKTsgbXNbIkIxIl0uYWxpZ25tZW50ID0gQSgpOyBtcy5yb3dfZGltZW5zaW9uc1sxXS5oZWlnaHQgPSAyOAptcy5tZXJnZV9jZWxscyhmIkIyOntnZXRfY29sdW1uX2xldHRlcihsZW4oaGRyc19tKSsxKX0yIikKbXNbIkIyIl0gPSBmIkFuw6FsaXNlIGRlIGNvbmZvcm1pZGFkZSBwb3IgcGVyw61vZG8gIMK3ICBHZXJhZG8gZW06IHt0b2RheS5zdHJmdGltZSgnJWQvJW0vJVknKX0iCm1zWyJCMiJdLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixzaXplPTksY29sb3I9QlJBTkNPLGl0YWxpYz1UcnVlKQptc1siQjIiXS5maWxsID0gRihBWlVMX01FRCk7IG1zWyJCMiJdLmFsaWdubWVudCA9IEEoKTsgbXMucm93X2RpbWVuc2lvbnNbMl0uaGVpZ2h0ID0gMTYKbXMucm93X2RpbWVuc2lvbnNbM10uaGVpZ2h0ID0gNgoKZm9yIGNpLGggaW4gZW51bWVyYXRlKGhkcnNfbSwyKToKICAgIGMgPSBtcy5jZWxsKHJvdz00LGNvbHVtbj1jaSx2YWx1ZT1oKQogICAgYy5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsYm9sZD1UcnVlLHNpemU9OSxjb2xvcj1CUkFOQ08pCiAgICBjLmZpbGwgPSBGKEFaVUxfRVNDKTsgYy5hbGlnbm1lbnQgPSBBKHdyYXA9VHJ1ZSk7IGMuYm9yZGVyID0gYm9yZGVyX2FsbCgpCm1zLnJvd19kaW1lbnNpb25zWzRdLmhlaWdodCA9IDIyCm1zLmZyZWV6ZV9wYW5lcyA9ICJCNSIKCmZvciByaSxtIGluIGVudW1lcmF0ZShtZXNlcyk6CiAgICByb3cgPSA1K3JpCiAgICBiZyA9IENJTlpBX0FMVCBpZiByaSUyPT0xIGVsc2UgQlJBTkNPCiAgICBjb25mID0gZiJ7bVsnbnAnXS9tYXgobVsnZW50J10sMSkqMTAwOi4wZn0lIiBpZiBtWydlbnQnXSBlbHNlICLigJQiCiAgICBjb25mX2NvciA9IFZFUkRFX0VTQyBpZiBtWydlbnQnXSBhbmQgbVsnbnAnXS9tWydlbnQnXT49MC44IGVsc2UgVkVSTV9FU0MKICAgIHZhbHMgPSBbbVsibGJsIl0sbVsidG90YWwiXSxtWyJlbnQiXSxtWyJucCJdLG1bImZwIl0sbVsicGVuZCJdLG1bImF0ciJdLHJvdW5kKG1bInZhbG9yIl0sMikscm91bmQobVsidm9sX2VudCJdLDIpLGNvbmZdCiAgICBmb3IgY2ksdiBpbiBlbnVtZXJhdGUodmFscywyKToKICAgICAgICBjID0gbXMuY2VsbChyb3c9cm93LGNvbHVtbj1jaSx2YWx1ZT12KQogICAgICAgIGMuYm9yZGVyID0gYm9yZGVyX2FsbCgpCiAgICAgICAgaWYgY2k9PTExOgogICAgICAgICAgICBjLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixib2xkPVRydWUsc2l6ZT05LGNvbG9yPWNvbmZfY29yKQogICAgICAgICAgICBjLmZpbGwgPSBGKFZFUkRFX0NMIGlmIG1bJ2VudCddIGFuZCBtWyducCddL21heChtWydlbnQnXSwxKT49MC44IGVsc2UgVkVSTV9DTCk7IGMuYWxpZ25tZW50ID0gQSgpCiAgICAgICAgZWxpZiBjaSBpbig5LDEwKToKICAgICAgICAgICAgYy5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsYm9sZD1UcnVlLHNpemU9OSkKICAgICAgICAgICAgYy5maWxsID0gRihiZyk7IGMubnVtYmVyX2Zvcm1hdD0nIywjIzAuMDAnOyBjLmFsaWdubWVudCA9IEEoInJpZ2h0IikKICAgICAgICBlbGlmIGNpPT02IGFuZCBpc2luc3RhbmNlKHYsaW50KSBhbmQgdj4wOgogICAgICAgICAgICBjLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixib2xkPVRydWUsc2l6ZT05LGNvbG9yPVZFUk1fRVNDKQogICAgICAgICAgICBjLmZpbGwgPSBGKFZFUk1fQ0wgaWYgcmklMj09MCBlbHNlIFZFUk1fQUxUKTsgYy5hbGlnbm1lbnQgPSBBKCkKICAgICAgICBlbGlmIGNpPT03IGFuZCBpc2luc3RhbmNlKHYsaW50KSBhbmQgdj4wOgogICAgICAgICAgICBjLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixib2xkPVRydWUsc2l6ZT05LGNvbG9yPVZFUk1fRVNDKQogICAgICAgICAgICBjLmZpbGwgPSBGKFZFUk1fQ0wgaWYgcmklMj09MCBlbHNlIFZFUk1fQUxUKTsgYy5hbGlnbm1lbnQgPSBBKCkKICAgICAgICBlbHNlOgogICAgICAgICAgICBjLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixzaXplPTkpCiAgICAgICAgICAgIGMuZmlsbCA9IEYoYmcpOyBjLmFsaWdubWVudCA9IEEoImxlZnQiIGlmIGNpPT0yIGVsc2UgImNlbnRlciIpCiAgICBtcy5yb3dfZGltZW5zaW9uc1tyb3ddLmhlaWdodCA9IDE2Cgp0ciA9IDUrbGVuKG1lc2VzKQp0b3RfY29uZiA9IGYie3BjdF9wcmF6bzouMGZ9JSIKdG90X3ZhbHMgPSBbIlRPVEFMIixsZW4oYXRpdm9zKSxsZW4oZW50cmVndWVzKSxsZW4obm9fcHJhem8pLGxlbihmb3JhX3ByYXpvKSxsZW4ocGVuZGVudGVzKSxsZW4oYXRyYXNhZG9zKSxyb3VuZCh2b2xfdG90YWwsMikscm91bmQodm9sX2VudCwyKSx0b3RfY29uZl0KZm9yIGNpLHYgaW4gZW51bWVyYXRlKHRvdF92YWxzLDIpOgogICAgYyA9IG1zLmNlbGwocm93PXRyLGNvbHVtbj1jaSx2YWx1ZT12KQogICAgYy5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsYm9sZD1UcnVlLHNpemU9OSxjb2xvcj1CUkFOQ08pCiAgICBjLmZpbGwgPSBGKEFaVUxfRVNDKTsgYy5hbGlnbm1lbnQgPSBBKCJyaWdodCIgaWYgY2k+PTkgZWxzZSAiY2VudGVyIik7IGMuYm9yZGVyID0gYm9yZGVyX2FsbCgpCiAgICBpZiBjaSBpbig5LDEwKTogYy5udW1iZXJfZm9ybWF0PScjLCMjMC4wMCcKbXMucm93X2RpbWVuc2lvbnNbdHJdLmhlaWdodCA9IDE4CgojIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAojIEFCQSA1IOKAlCBQRU5Ew4pOQ0lBUwojIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAphbCA9IHdiLmNyZWF0ZV9zaGVldCgiUGVuZMOqbmNpYXMgZSBBbGVydGFzIikKYWwuc2hlZXRfdmlldy5zaG93R3JpZExpbmVzID0gRmFsc2UKCmNvbF93c19hID0gWzQsNSwyMiwxOCwxNSwxMiwxMiwxNCwxNCwxOF0KaGRyc19hID0gWyIiLCJJRCIsIkRlc2NyacOnw6NvIiwiRm9ybmVjZWRvciIsIkNhcnTDo28iLCJEYXRhIFBndG8iLCJQcmF6byA0OGgiLCJTaXR1YcOnw6NvIiwiVmFsb3IgKFIkKSIsIkHDp8OjbyBOZWNlc3PDoXJpYSJdCmZvciBpLCh3LGgpIGluIGVudW1lcmF0ZSh6aXAoY29sX3dzX2EsaGRyc19hKSwxKToKICAgIGFsLmNvbHVtbl9kaW1lbnNpb25zW2dldF9jb2x1bW5fbGV0dGVyKGkpXS53aWR0aCA9IHcKCmFsLm1lcmdlX2NlbGxzKGYiQjE6e2dldF9jb2x1bW5fbGV0dGVyKGxlbihoZHJzX2EpKX0xIikKYWxbIkIxIl0gPSAi8J+aqCAgUEVORMOKTkNJQVMgRSBBTEVSVEFTIOKAlCBBw4fDg08gSU1FRElBVEEgTkVDRVNTw4FSSUEiCmFsWyJCMSJdLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixib2xkPVRydWUsc2l6ZT0xNCxjb2xvcj1CUkFOQ08pCmFsWyJCMSJdLmZpbGwgPSBGKFZFUk1fRVNDKTsgYWxbIkIxIl0uYWxpZ25tZW50ID0gQSgpOyBhbC5yb3dfZGltZW5zaW9uc1sxXS5oZWlnaHQgPSAyOAoKYWwubWVyZ2VfY2VsbHMoZiJCMjp7Z2V0X2NvbHVtbl9sZXR0ZXIobGVuKGhkcnNfYSkpfTIiKQptc2cgPSBmIkF0cmFzYWRvczoge2xlbihhdHJhc2Fkb3MpfSAgwrcgIFBlbmRlbnRlczoge2xlbihwZW5kZW50ZXMpfSAgwrcgIFZhbG9yIGVtIHJpc2NvOiB7Zm10X2JybCh2b2xfcGVuZCl9ICDCtyAgR2VyYWRvIGVtOiB7dG9kYXkuc3RyZnRpbWUoJyVkLyVtLyVZJyl9IgphbFsiQjIiXS52YWx1ZSA9IG1zZwphbFsiQjIiXS5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsc2l6ZT05LGNvbG9yPUJSQU5DTyxpdGFsaWM9VHJ1ZSkKYWxbIkIyIl0uZmlsbCA9IEYoVkVSTV9NRUQpOyBhbFsiQjIiXS5hbGlnbm1lbnQgPSBBKCk7IGFsLnJvd19kaW1lbnNpb25zWzJdLmhlaWdodCA9IDE2CmFsLnJvd19kaW1lbnNpb25zWzNdLmhlaWdodCA9IDYKCmZvciBjaSxoIGluIGVudW1lcmF0ZShoZHJzX2EsMSk6CiAgICBjID0gYWwuY2VsbChyb3c9NCxjb2x1bW49Y2ksdmFsdWU9aCBpZiBjaT4xIGVsc2UgIiIpCiAgICBpZiBjaT4xOgogICAgICAgIGMuZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLGJvbGQ9VHJ1ZSxzaXplPTksY29sb3I9QlJBTkNPKQogICAgICAgIGMuZmlsbCA9IEYoQVpVTF9FU0MpOyBjLmFsaWdubWVudCA9IEEod3JhcD1UcnVlKTsgYy5ib3JkZXIgPSBib3JkZXJfYWxsKCkKYWwucm93X2RpbWVuc2lvbnNbNF0uaGVpZ2h0ID0gMTgKCnBlbmRlbmNpYXMgPSBzb3J0ZWQoYXRyYXNhZG9zK3BlbmRlbnRlcywga2V5PWxhbWJkYSBwOiBwcmF6bzQ4KHBbImRhdGEiXSkpCmZvciByaSxwIGluIGVudW1lcmF0ZShwZW5kZW5jaWFzKToKICAgIHJvdyA9IDUrcmkKICAgIHMgPSBnZXRfc3RhdHVzKHApCiAgICBsaW0gPSBwcmF6bzQ4KHBbImRhdGEiXSkKICAgIGhvcmFzID0gaW50KChkYXRldGltZS5jb21iaW5lKGxpbSxkYXRldGltZS5taW4udGltZSgpKS1kYXRldGltZS5ub3coKSkudG90YWxfc2Vjb25kcygpLzM2MDApCiAgICBzaXRfbGJsID0gIvCflLQgQVRSQVNBRE8iIGlmIHM9PSJhdHJhc2FkbyIgZWxzZSAi8J+foSBQRU5ERU5URSIKICAgIGJnID0gVkVSTV9DTCBpZiBzPT0iYXRyYXNhZG8iIGVsc2UgQU1BUl9DTAogICAgYmcyID0gVkVSTV9BTFQgaWYgcz09ImF0cmFzYWRvIiBlbHNlIEFNQVJfQ0wKICAgIGNvciA9IFZFUk1fRVNDIGlmIHM9PSJhdHJhc2FkbyIgZWxzZSBBTUFSX0VTQwogICAgYWNhbyA9IGYiVVJHRU5URTogZW50cmVnYXIgaW1lZGlhdGFtZW50ZSAoe2Ficyhob3Jhcyl9aCBhdHJhc28pIiBpZiBob3JhczwwIGVsc2UgZiJFbnRyZWdhciBlbSBhdMOpIHtob3Jhc31oIgogICAgdmFscyA9IFsiIixwWyJpZCJdLHAuZ2V0KCJkZXNjIiwiIikscC5nZXQoImZvcm4iLCIiKSxwLmdldCgiY2FydGFvIiwiIiksCiAgICAgICAgICAgIHBhcnNlX2RhdGUocFsiZGF0YSJdKS5zdHJmdGltZSgiJWQvJW0vJVkiKSxsaW0uc3RyZnRpbWUoIiVkLyVtLyVZIiksc2l0X2xibCxmbG9hdChwLmdldCgidmFsb3IiLDApKSxhY2FvXQogICAgZm9yIGNpLHYgaW4gZW51bWVyYXRlKHZhbHMsMSk6CiAgICAgICAgYyA9IGFsLmNlbGwocm93PXJvdyxjb2x1bW49Y2ksdmFsdWU9dikKICAgICAgICBpZiBjaT09MTogYy5maWxsID0gRihiZyk7IGNvbnRpbnVlCiAgICAgICAgYy5ib3JkZXIgPSBib3JkZXJfYWxsKCkKICAgICAgICBpZiBjaT09ODoKICAgICAgICAgICAgYy5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsYm9sZD1UcnVlLHNpemU9OSxjb2xvcj1jb3IpCiAgICAgICAgICAgIGMuZmlsbCA9IEYoYmcpOyBjLmFsaWdubWVudCA9IEEoKQogICAgICAgIGVsaWYgY2k9PTk6CiAgICAgICAgICAgIGMuZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLGJvbGQ9VHJ1ZSxzaXplPTksY29sb3I9Y29yKQogICAgICAgICAgICBjLmZpbGwgPSBGKGJnMik7IGMubnVtYmVyX2Zvcm1hdD0nIywjIzAuMDAnOyBjLmFsaWdubWVudCA9IEEoInJpZ2h0IikKICAgICAgICBlbGlmIGNpPT0xMDoKICAgICAgICAgICAgYy5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsYm9sZD1UcnVlLHNpemU9OSxjb2xvcj1jb3IpCiAgICAgICAgICAgIGMuZmlsbCA9IEYoYmcpOyBjLmFsaWdubWVudCA9IEEoImxlZnQiLHdyYXA9VHJ1ZSkKICAgICAgICBlbHNlOgogICAgICAgICAgICBjLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixzaXplPTkpCiAgICAgICAgICAgIGMuZmlsbCA9IEYoYmcyKTsgYy5hbGlnbm1lbnQgPSBBKCJsZWZ0IiBpZiBjaSBpbigzLDQsNSkgZWxzZSAiY2VudGVyIikKICAgIGFsLnJvd19kaW1lbnNpb25zW3Jvd10uaGVpZ2h0ID0gMTYKCmlmIG5vdCBwZW5kZW5jaWFzOgogICAgYWwubWVyZ2VfY2VsbHMoZiJCNTp7Z2V0X2NvbHVtbl9sZXR0ZXIobGVuKGhkcnNfYSkpfTUiKQogICAgYWxbIkI1Il0gPSAi4pyFICBOZW5odW1hIHBlbmTDqm5jaWEhIFRvZG9zIG9zIHBhZ2FtZW50b3MgZm9yYW0gZW50cmVndWVzIGRlbnRybyBkbyBwcmF6byBkZSA0OGguIgogICAgYWxbIkI1Il0uZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLGJvbGQ9VHJ1ZSxzaXplPTExLGNvbG9yPVZFUkRFX0VTQykKICAgIGFsWyJCNSJdLmZpbGwgPSBGKFZFUkRFX0NMKTsgYWxbIkI1Il0uYWxpZ25tZW50ID0gQSgiY2VudGVyIik7IGFsLnJvd19kaW1lbnNpb25zWzVdLmhlaWdodCA9IDI0CgojIFRvdGFsIHBlbmRlbnRlCmlmIHBlbmRlbmNpYXM6CiAgICB0ciA9IDUrbGVuKHBlbmRlbmNpYXMpCiAgICBhbC5tZXJnZV9jZWxscyhmIkJ7dHJ9Okh7dHJ9IikKICAgIGFsW2YiQnt0cn0iXSA9IGYiVE9UQUwgRU0gUklTQ08gICh7bGVuKHBlbmRlbmNpYXMpfSByZWdpc3Ryb3MpIgogICAgYWxbZiJCe3RyfSJdLmZvbnQgPSBGb250KG5hbWU9IkFyaWFsIixib2xkPVRydWUsc2l6ZT05LGNvbG9yPUJSQU5DTykKICAgIGFsW2YiQnt0cn0iXS5maWxsID0gRihWRVJNX0VTQyk7IGFsW2YiQnt0cn0iXS5hbGlnbm1lbnQgPSBBKCJsZWZ0Iik7IGFsW2YiQnt0cn0iXS5ib3JkZXIgPSBib3JkZXJfYWxsKCkKICAgIGFsLmNlbGwocm93PXRyLGNvbHVtbj05KS52YWx1ZSA9IHZvbF9wZW5kCiAgICBhbC5jZWxsKHJvdz10cixjb2x1bW49OSkuZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLGJvbGQ9VHJ1ZSxzaXplPTksY29sb3I9QlJBTkNPKQogICAgYWwuY2VsbChyb3c9dHIsY29sdW1uPTkpLmZpbGwgPSBGKFZFUk1fRVNDKQogICAgYWwuY2VsbChyb3c9dHIsY29sdW1uPTkpLm51bWJlcl9mb3JtYXQ9JyMsIyMwLjAwJzsgYWwuY2VsbChyb3c9dHIsY29sdW1uPTkpLmFsaWdubWVudCA9IEEoInJpZ2h0IikKICAgIGFsLmNlbGwocm93PXRyLGNvbHVtbj05KS5ib3JkZXIgPSBib3JkZXJfYWxsKCkKICAgIGFsLmNlbGwocm93PXRyLGNvbHVtbj0xMCkuZmlsbCA9IEYoVkVSTV9FU0MpOyBhbC5jZWxsKHJvdz10cixjb2x1bW49MTApLmJvcmRlciA9IGJvcmRlcl9hbGwoKQogICAgYWwucm93X2RpbWVuc2lvbnNbdHJdLmhlaWdodCA9IDE4CgojIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAojIEFCQSA2IOKAlCBBVURJVE9SSUEKIyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKaHMgPSB3Yi5jcmVhdGVfc2hlZXQoIkF1ZGl0b3JpYSBDb21wbGV0YSIpCmhzLnNoZWV0X3ZpZXcuc2hvd0dyaWRMaW5lcyA9IEZhbHNlCgpjb2xfd3NfaCA9IFs0LDYsMjAsMTgsMTYsMTgsMjZdCmhkcnNfaCA9IFsiIiwiSUQiLCJEZXNjcmnDp8OjbyIsIkZvcm5lY2Vkb3IiLCJUaXBvIEV2ZW50byIsIkRhdGEgLyBIb3JhIiwiTW90aXZvIC8gT2JzZXJ2YcOnw6NvIl0KZm9yIGksKHcsaCkgaW4gZW51bWVyYXRlKHppcChjb2xfd3NfaCxoZHJzX2gpLDEpOgogICAgaHMuY29sdW1uX2RpbWVuc2lvbnNbZ2V0X2NvbHVtbl9sZXR0ZXIoaSldLndpZHRoID0gdwoKaHMubWVyZ2VfY2VsbHMoZiJCMTp7Z2V0X2NvbHVtbl9sZXR0ZXIobGVuKGhkcnNfaCkpfTEiKQpoc1siQjEiXSA9ICJISVNUw5NSSUNPIERFIEFVRElUT1JJQSDigJQgUkVHSVNUUk8gQ09NUExFVE8gREUgQUxURVJBw4fDlUVTIgpoc1siQjEiXS5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsYm9sZD1UcnVlLHNpemU9MTQsY29sb3I9QlJBTkNPKQpoc1siQjEiXS5maWxsID0gRihBWlVMX0VTQyk7IGhzWyJCMSJdLmFsaWdubWVudCA9IEEoKTsgaHMucm93X2RpbWVuc2lvbnNbMV0uaGVpZ2h0ID0gMjgKaHMubWVyZ2VfY2VsbHMoZiJCMjp7Z2V0X2NvbHVtbl9sZXR0ZXIobGVuKGhkcnNfaCkpfTIiKQpoc1siQjIiXSA9IGYiVG90YWwgZGUgZXZlbnRvczoge3N1bShsZW4ocC5nZXQoJ2hpc3RvcmljbycsW10pKSBmb3IgcCBpbiBwYXltZW50cyl9ICDCtyAgR2VyYWRvIGVtOiB7dG9kYXkuc3RyZnRpbWUoJyVkLyVtLyVZJyl9ICDCtyAgVXNvIHJlc3RyaXRvIgpoc1siQjIiXS5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsc2l6ZT05LGNvbG9yPUJSQU5DTyxpdGFsaWM9VHJ1ZSkKaHNbIkIyIl0uZmlsbCA9IEYoQVpVTF9NRUQpOyBoc1siQjIiXS5hbGlnbm1lbnQgPSBBKCk7IGhzLnJvd19kaW1lbnNpb25zWzJdLmhlaWdodCA9IDE2CmhzLnJvd19kaW1lbnNpb25zWzNdLmhlaWdodCA9IDYKCmZvciBjaSxoIGluIGVudW1lcmF0ZShoZHJzX2gsMSk6CiAgICBjID0gaHMuY2VsbChyb3c9NCxjb2x1bW49Y2ksdmFsdWU9aCBpZiBjaT4xIGVsc2UgIiIpCiAgICBpZiBjaT4xOgogICAgICAgIGMuZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLGJvbGQ9VHJ1ZSxzaXplPTksY29sb3I9QlJBTkNPKQogICAgICAgIGMuZmlsbCA9IEYoQVpVTF9FU0MpOyBjLmFsaWdubWVudCA9IEEod3JhcD1UcnVlKTsgYy5ib3JkZXIgPSBib3JkZXJfYWxsKCkKaHMucm93X2RpbWVuc2lvbnNbNF0uaGVpZ2h0ID0gMTgKaHMuZnJlZXplX3BhbmVzID0gIkI1IgoKVElQT19MQkwgID0geyJjcmlhZG8iOiLinIUgQ3JpYWRvIiwiZWRpdCI6IuKcj++4jyBFZGl0YWRvIiwiZW50cmVndWUiOiLwn5OmIEVudHJlZ3VlIiwiY2FuY2VsYWRvIjoi4p2MIENhbmNlbGFkbyJ9ClRJUE9fQkcgICA9IHsiY3JpYWRvIjpWRVJERV9DTCwiZWRpdCI6QU1BUl9DTCwiZW50cmVndWUiOlZFUkRFX0FMVCwiY2FuY2VsYWRvIjpWRVJNX0NMfQpUSVBPX0NPUiAgPSB7ImNyaWFkbyI6VkVSREVfRVNDLCJlZGl0IjpBTUFSX0VTQywiZW50cmVndWUiOlZFUkRFX0VTQywiY2FuY2VsYWRvIjpWRVJNX0VTQ30KCmFsbF9oaXN0ID0gW10KZm9yIHAgaW4gcGF5bWVudHM6CiAgICBmb3IgaCBpbiBwLmdldCgiaGlzdG9yaWNvIixbXSk6CiAgICAgICAgYWxsX2hpc3QuYXBwZW5kKChoLmdldCgicXVhbmRvIiwiIiksIHAsIGgpKQphbGxfaGlzdC5zb3J0KGtleT1sYW1iZGEgeDogeFswXSwgcmV2ZXJzZT1UcnVlKQoKZm9yIHJpLChxdWFuZG8scCxoKSBpbiBlbnVtZXJhdGUoYWxsX2hpc3QpOgogICAgcm93ID0gNStyaQogICAgdGlwbyA9IGguZ2V0KCJ0aXBvIiwiIikKICAgIGJnID0gVElQT19CRy5nZXQodGlwbywgQ0lOWkFfQ0wpCiAgICBiZzIgPSBDSU5aQV9BTFQgaWYgcmklMj09MSBlbHNlIEJSQU5DTwogICAgdHJ5OiBkdF9zdHIgPSBkYXRldGltZS5mcm9taXNvZm9ybWF0KHF1YW5kby5yZXBsYWNlKCJaIiwiKzAwOjAwIikpLnN0cmZ0aW1lKCIlZC8lbS8lWSAgJUg6JU0iKQogICAgZXhjZXB0OiBkdF9zdHIgPSBxdWFuZG8KICAgIHZhbHMgPSBbIiIscFsiaWQiXSxwLmdldCgiZGVzYyIsIiIpLHAuZ2V0KCJmb3JuIiwiIiksVElQT19MQkwuZ2V0KHRpcG8sdGlwbyksZHRfc3RyLGguZ2V0KCJyYXphbyIsIiIpIG9yICLigJQiXQogICAgZm9yIGNpLHYgaW4gZW51bWVyYXRlKHZhbHMsMSk6CiAgICAgICAgYyA9IGhzLmNlbGwocm93PXJvdyxjb2x1bW49Y2ksdmFsdWU9dikKICAgICAgICBpZiBjaT09MTogYy5maWxsID0gRihiZyk7IGNvbnRpbnVlCiAgICAgICAgYy5ib3JkZXIgPSBib3JkZXJfYWxsKCkKICAgICAgICBpZiBjaT09NToKICAgICAgICAgICAgYy5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsYm9sZD1UcnVlLHNpemU9OSxjb2xvcj1USVBPX0NPUi5nZXQodGlwbywiMDAwMDAwIikpCiAgICAgICAgICAgIGMuZmlsbCA9IEYoYmcpOyBjLmFsaWdubWVudCA9IEEoKQogICAgICAgIGVsc2U6CiAgICAgICAgICAgIGMuZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLHNpemU9OSkKICAgICAgICAgICAgYy5maWxsID0gRihiZzIpOyBjLmFsaWdubWVudCA9IEEoImxlZnQiIGlmIGNpPjMgZWxzZSAiY2VudGVyIix3cmFwPShjaT09NykpCiAgICBocy5yb3dfZGltZW5zaW9uc1tyb3ddLmhlaWdodCA9IDE1CgojIOKUgOKUgCBTQUxWQVIg4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSACm91dCA9ICIvdG1wL3JlbGF0b3Jpb19leGVjLnhsc3giCndiLnNhdmUob3V0KQpwcmludChmIk9LOntvdXR9IikK";
+
+      // Decode template and inject data
+      const templateCode = atob(templateB64);
+      
+      // Send to Anthropic API to execute Python and return xlsx as base64
+      const prompt = `Execute este script Python exatamente como está e retorne APENAS o conteúdo do arquivo xlsx gerado em base64, sem nenhum texto antes ou depois.
+
+O script lê JSON do stdin. Os dados a passar via stdin são:
+${dadosJSON}
+
+Script Python (execute com os dados acima no stdin):
+\`\`\`python
+${templateCode}
+\`\`\`
+
+Após executar, leia o arquivo /tmp/relatorio_exec.xlsx, converta para base64 e retorne APENAS a string base64 pura, sem prefixo, sem markdown, sem explicação.`;
+
+      fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        const text = (data.content || []).map(c => c.text || '').join('').trim();
+        if (!text || text.length < 100) {
+          throw new Error('Resposta inválida da API. Tente novamente.');
+        }
+        // Decode base64 to blob and download
+        const binary = atob(text.replace(/[^A-Za-z0-9+/=]/g, ''));
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+        a.href = url;
+        a.download = `Prestacao_Contas_Executivo_${hoje}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (btn) { btn.innerHTML = '📊 Baixar Excel — Apresentação de Diretoria'; btn.disabled = false; }
+      })
+      .catch(err => {
+        console.error(err);
+        alert('Erro ao gerar Excel: ' + err.message);
+        if (btn) { btn.innerHTML = '📊 Baixar Excel — Apresentação de Diretoria'; btn.disabled = false; }
+      });
+
+    } catch(ex) {
+      console.error(ex);
+      alert('Erro: ' + ex.message);
+      if (btn) { btn.innerHTML = '📊 Baixar Excel — Apresentação de Diretoria'; btn.disabled = false; }
+    }
+  }
+
+
+  // ── IMPORTAÇÃO AUTOMÁTICA DA PLANILHA ────────────────────────────────
+  window._importData = [{"id": 1, "data": "2026-05-01", "desc": "Email", "forn": "Dl*Google Worksp", "valor": 81.8, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-01T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 2, "data": "2026-05-04", "desc": "Parafusadeira", "forn": "G C M Gama Comercio E", "valor": 888.9, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-04T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 3, "data": "2026-05-04", "desc": "Agua", "forn": "Real Express", "valor": 271.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-04T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 4, "data": "2026-05-04", "desc": "Toner", "forn": "Uniprint", "valor": 130.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-04T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 5, "data": "2026-05-04", "desc": "Ferramentas", "forn": "Xavier Ferramentas", "valor": 822.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-04T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 6, "data": "2026-05-04", "desc": "Mat. Eletrico", "forn": "Aeadistribuicaoe", "valor": 5822.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-04T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 7, "data": "2026-05-04", "desc": "Parafuso", "forn": "Vetoh Ltda", "valor": 90.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-04T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 8, "data": "2026-05-04", "desc": "Refrigeração", "forn": "S M De Menezes", "valor": 580.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-04T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 9, "data": "2026-05-04", "desc": "Grafica", "forn": "Pittmancomercioe", "valor": 105.84, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-04T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 10, "data": "2026-05-04", "desc": "Correios", "forn": "Dlknet *Ac Cachoeirinh", "valor": 197.5, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-04T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 11, "data": "2026-05-04", "desc": "Email", "forn": "Dm *Godaddycoml", "valor": 479.52, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-04T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 12, "data": "2026-05-06", "desc": "Mat. Metalurgica", "forn": "Amazon Aco", "valor": 573.48, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 13, "data": "2026-05-06", "desc": "Marcenaria", "forn": "Centro Do Aluminio", "valor": 91.63, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 14, "data": "2026-05-06", "desc": "Assistencia tec.", "forn": "3R Celular", "valor": 1670.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 15, "data": "2026-05-05", "desc": "Tintas", "forn": "Dismonza", "valor": 110.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-05T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 16, "data": "2026-05-05", "desc": "Serv. Manutençao Predial", "forn": "Janainaseverinoda", "valor": 4150.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-05T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 17, "data": "2026-05-05", "desc": "Mat. Informatica", "forn": "Mercadolivre*Infostorecom", "valor": 765.4, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-05T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 18, "data": "2026-05-06", "desc": "Mat. Metalurgica", "forn": "Amazon Aco", "valor": 321.52, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 19, "data": "2026-05-06", "desc": "Mat. Metalurgica", "forn": "Amazon Aco", "valor": 311.94, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 20, "data": "2026-05-06", "desc": "Mat. Metalurgica", "forn": "Amazon Aco Ind E Com", "valor": 86.68, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 21, "data": "2026-05-06", "desc": "Mat. Metalurgica", "forn": "Amazon Aco Ind E Com", "valor": 606.75, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 22, "data": "2026-05-06", "desc": "Mat. Metalurgica", "forn": "Amazon Aco Ind E Com", "valor": 346.71, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 23, "data": "2026-05-06", "desc": "Mat. Metalurgica", "forn": "Amazon Aco Ind E Com", "valor": 433.39, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 24, "data": "2026-05-06", "desc": "Refrigeração", "forn": "Refrigeracao Rondonia", "valor": 980.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 25, "data": "2026-05-06", "desc": "Mat. Metalurgica", "forn": "Amazon Aco", "valor": 39.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 26, "data": "2026-05-06", "desc": "Mat. Peças Automotivas", "forn": "Mp*Motocross", "valor": 278.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 27, "data": "2026-05-06", "desc": "Fardamento", "forn": "Via Store Modas", "valor": 200.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 28, "data": "2026-05-06", "desc": "Fardamento", "forn": "Via Store Modas", "valor": 2600.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 29, "data": "2026-05-06", "desc": "Peças de Gerador", "forn": "Toyama Tec", "valor": 217.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 30, "data": "2026-05-06", "desc": "Peças de Gerador", "forn": "Toyama Tec", "valor": 337.82, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 31, "data": "2026-05-06", "desc": "Peças Automotivas (frota)", "forn": "Shizen Veiculos", "valor": 1919.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 32, "data": "2026-05-06", "desc": "Peças Automotivas (frota)", "forn": "Shizen Veiculos", "valor": 880.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 33, "data": "2026-05-07", "desc": "Peças Automotivas", "forn": "Mp*Ramotos", "valor": 375.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-07T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 34, "data": "2026-05-07", "desc": "Peças Automotivas", "forn": "Mp*Ramotos", "valor": 540.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-07T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 35, "data": "2026-05-07", "desc": "Peças Automotivas", "forn": "Javali Manaus", "valor": 211.57, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-07T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 36, "data": "2026-05-06", "desc": "Mat. Geral", "forn": "Casa Das Correias", "valor": 1239.7, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 37, "data": "2026-05-06", "desc": "Peças Automotivas (frota)", "forn": "Pmz Distribuidora Sa", "valor": 590.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 38, "data": "2026-05-06", "desc": "Mat. Metalurgica", "forn": "Amazon Aco Ind E Com", "valor": 173.36, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 39, "data": "2026-05-08", "desc": "Mat. Iluminaçao", "forn": "Ledy Da Amazonia", "valor": 336.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 40, "data": "2026-05-08", "desc": "Agua", "forn": "Real Express", "valor": 196.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 41, "data": "2026-05-07", "desc": "Vidros", "forn": "Portal Vidros - 140002", "valor": 56.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-07T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 42, "data": "2026-05-07", "desc": "Mat. Eletricos", "forn": "S V Instalacoes", "valor": 652.32, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-07T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 43, "data": "2026-05-07", "desc": "Mat. Eletricos", "forn": "S V Instalacoes", "valor": 18.77, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-07T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 44, "data": "2026-05-07", "desc": "Mat. Geral", "forn": "Casa Das Correias", "valor": 495.87, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-07T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 45, "data": "2026-05-08", "desc": "Mat. Geral", "forn": "Casa Das Correias", "valor": 411.57, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 46, "data": "2026-05-08", "desc": "Compras Online", "forn": "Mercadolivre*Mercadolivre", "valor": 115.6, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 47, "data": "2026-05-08", "desc": "Ai", "forn": "Claude.Ai Subscription", "valor": 550.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 48, "data": "2026-05-08", "desc": "Parafuso", "forn": "Vetoh Ltda", "valor": 140.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 49, "data": "2026-05-08", "desc": "Parafuso", "forn": "Vetoh Ltda", "valor": 434.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 50, "data": "2026-05-08", "desc": "Mat. Limpeza", "forn": "Comercial Amazonas Com", "valor": 2150.4, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 51, "data": "2026-05-08", "desc": "Mat. Limpeza", "forn": "Comercial Amazonas Com", "valor": 1007.8, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 52, "data": "2026-05-08", "desc": "Ai", "forn": "Anthropic Claude Team", "valor": 1980.6, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 53, "data": "2026-05-08", "desc": "Mat. Limpeza", "forn": "Esupplies", "valor": 60.7, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 54, "data": "2026-05-08", "desc": "Ferramentas", "forn": "Xavier Ferramentas", "valor": 3500.0, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 55, "data": "2026-05-08", "desc": "Mat. Geral", "forn": "Casa Das Correias", "valor": 1148.29, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 56, "data": "2026-05-08", "desc": "Mat. Geral", "forn": "Casa Das Correias", "valor": 427.62, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 57, "data": "2026-05-08", "desc": "Mat. Geral", "forn": "Casa Das Correias", "valor": 95.51, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 58, "data": "2026-05-08", "desc": "Mat. Geral", "forn": "Casa Das Correias", "valor": 404.46, "cartao": "Cartão final 2972", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 59, "data": "2026-05-06", "desc": "Mat. Eletronicos", "forn": "Telemel", "valor": 17979.56, "cartao": "Cartão final 2669", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 60, "data": "2026-05-06", "desc": "Tintas", "forn": "Dismonza", "valor": 195.0, "cartao": "Cartão final 2669", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 61, "data": "2026-05-06", "desc": "Tintas", "forn": "Dismonza", "valor": 50.0, "cartao": "Cartão final 2669", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 62, "data": "2026-05-06", "desc": "Tintas", "forn": "Dismonza", "valor": 100.0, "cartao": "Cartão final 2669", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 63, "data": "2026-05-06", "desc": "Mat. Limpeza", "forn": "Esupplies", "valor": 12545.8, "cartao": "Cartão final 2669", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 64, "data": "2026-05-06", "desc": "Mat. Eletrico", "forn": "Casadoeletricista", "valor": 700.5, "cartao": "Cartão final 2669", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 65, "data": "2026-05-06", "desc": "Mat. Geral", "forn": "Bigazine", "valor": 607.96, "cartao": "Cartão final 2669", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 66, "data": "2026-05-06", "desc": "Mat. Eletronicos", "forn": "Omni", "valor": 8499.0, "cartao": "Cartão final 2669", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 67, "data": "2026-05-06", "desc": "Mat. Eletronicos", "forn": "Telemel", "valor": 39126.85, "cartao": "Cartão final 2669", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 68, "data": "2026-05-08", "desc": "Peças Automotivas", "forn": "Javali Manaus", "valor": 1079.91, "cartao": "Cartão final 2669", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 69, "data": "2026-05-08", "desc": "Mat. Eletrico", "forn": "Aeadistribuicaoe", "valor": 6130.0, "cartao": "Cartão final 2669", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-08T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 70, "data": "2026-05-07", "desc": "Mat. Eletronicos", "forn": "B S A Distribuidora", "valor": 675.05, "cartao": "Cartão final 2669", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-07T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 71, "data": "2026-05-07", "desc": "Mat. Eletronicos", "forn": "Monitoriza Distribuidor", "valor": 700.0, "cartao": "Cartão final 2669", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-07T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}, {"id": 72, "data": "2026-05-06", "desc": "Mat. Limpeza", "forn": "Esupplies", "valor": 2991.0, "cartao": "Cartão final 2669", "status": "pendente", "entregue": null, "historico": [{"tipo": "criado", "quando": "2026-05-06T08:00:00Z", "razao": "Importado da planilha Base_dados_compra.xlsx", "snapshot": {}}]}];
+  window._importNextId = 73;
+
+  async function importarPlanilha() {
+    if (!window._fbSave) {
+      alert('Aguarde a conexão com o banco de dados e tente novamente.');
+      return;
+    }
+    
+    const total = window._importData.length;
+    const vol = window._importData.reduce((a,p) => a + p.valor, 0);
+    
+    const confirm1 = window.confirm(
+      `Importar ${total} registros da planilha?\n\n` +
+      `Volume total: R$ ${vol.toLocaleString('pt-BR',{minimumFractionDigits:2})}\n` +
+      `Período: 01/05/2026 a 08/05/2026\n` +
+      `Cartões: final 2972 (58 reg.) e final 2669 (14 reg.)\n\n` +
+      `ATENÇÃO: Os registros atuais serão mantidos e os novos serão adicionados.`
+    );
+    
+    if (!confirm1) return;
+    
+    const btn = document.getElementById('btn-importar');
+    if (btn) { btn.textContent = '⏳ Importando...'; btn.disabled = true; }
+    
+    try {
+      // Merge with existing, assigning new IDs to avoid conflicts
+      const existing = window._payments || [];
+      let maxId = existing.reduce((a,p) => Math.max(a, Number(p.id)), 0);
+      
+      const novos = window._importData.map(p => ({
+        ...p,
+        id: ++maxId
+      }));
+      
+      const merged = [...existing, ...novos];
+      window._payments = merged;
+      window._nextId = maxId + 1;
+      
+      await window._fbSave({ payments: merged, nextId: maxId + 1 });
+      
+      render(); renderHist(); renderRel();
+      
+      alert(`✅ ${total} registros importados com sucesso!\nTotal no sistema: ${merged.length} registros.`);
+      
+      // Hide import banner after successful import
+      const banner = document.getElementById('import-banner');
+      if (banner) banner.remove();
+      
+    } catch(e) {
+      console.error(e);
+      alert('Erro na importação: ' + e.message);
+      if (btn) { btn.textContent = '📥 Importar Planilha (72 registros)'; btn.disabled = false; }
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────
+  // ── INIT ──
+  document.getElementById('n-data').value = todayISO();
+  updateNewPrazo();
+  setSyncState(false);
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script>
+</body>
+</html>
