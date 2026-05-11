@@ -950,21 +950,19 @@ Para cada transação retorne um JSON array com objetos: {"desc": "nome do estab
 Ignore transações de crédito, estornos.
 Retorne APENAS o JSON array puro, sem markdown, sem explicação.`;
 
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      const resp = await fetch('/api/ler-extrato', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: [
-            { type: 'image', source: { type: 'base64', media_type: file.type, data: base64 } },
-            { type: 'text', text: prompt }
-          ]}]
+          imageBase64: base64,
+          mediaType: file.type,
+          prompt: prompt
         })
       });
 
       const data = await resp.json();
-      const text = (data.content || []).map(c => c.text || '').join('').trim();
+      if (data.error) throw new Error(data.error);
+      const text = data.text || '';
       const clean = text.replace(/```json|```/g, '').trim();
       _transacoesLidas = JSON.parse(clean);
 
@@ -997,13 +995,64 @@ Retorne APENAS o JSON array puro, sem markdown, sem explicação.`;
     }
   }
 
+  // Verifica duplicatas: mesma data + mesmo valor + fornecedor similar
+  function verificarDuplicata(t) {
+    return (window._payments || []).filter(p => {
+      if (p.data !== t.data) return false;
+      if (Math.abs(Number(p.valor) - Number(t.valor)) > 0.01) return false;
+      const descNova = (t.desc || '').toLowerCase().trim();
+      const descExist = (p.forn || p.desc || '').toLowerCase().trim();
+      // Considera duplicata se as primeiras 6 letras forem iguais ou valor+data exatos
+      return descNova.substring(0,6) === descExist.substring(0,6) || 
+             (descNova === descExist);
+    });
+  }
+
   async function confirmarImportacaoImagem() {
     if (!_transacoesLidas.length) return;
     const btn = document.getElementById('btn-confirmar-import');
+
+    // ── Verificar duplicatas antes de importar ──
+    const duplicatas = [];
+    const semDuplicata = [];
+
+    _transacoesLidas.forEach((t, idx) => {
+      const found = verificarDuplicata(t);
+      if (found.length > 0) {
+        duplicatas.push({ t, idx, existentes: found });
+      } else {
+        semDuplicata.push(t);
+      }
+    });
+
+    // Se há duplicatas, mostrar aviso e pedir confirmação por item
+    if (duplicatas.length > 0) {
+      const lista = duplicatas.map(d => {
+        const ex = d.existentes[0];
+        return `• ${d.t.desc} — R$ ${Number(d.t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})} (${d.t.data ? new Date(d.t.data+'T00:00:00').toLocaleDateString('pt-BR') : '—'})\n  Já existe: ${ex.forn} — R$ ${Number(ex.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})} (${new Date(ex.data+'T00:00:00').toLocaleDateString('pt-BR')})`;
+      }).join('\n\n');
+
+      const msg = `⚠️ ${duplicatas.length} transação(ões) parecem já estar lançadas:\n\n${lista}\n\nDeseja importar mesmo assim (incluindo as duplicatas)?`;
+      const incluirDuplicatas = window.confirm(msg);
+
+      if (!incluirDuplicatas) {
+        // Importar apenas as sem duplicata
+        if (semDuplicata.length === 0) {
+          alert('Nenhuma transação nova para importar. Operação cancelada.');
+          return;
+        }
+        const ok = window.confirm(`Importar apenas as ${semDuplicata.length} transação(ões) sem duplicata?`);
+        if (!ok) return;
+        _transacoesLidas = semDuplicata;
+      }
+      // Se confirmou incluir duplicatas, mantém todas (_transacoesLidas original)
+    }
+
     btn.textContent = '⏳ Importando...'; btn.disabled = true;
     try {
       const now = new Date().toISOString();
       let maxId = (window._payments || []).reduce((a,p) => Math.max(a, Number(p.id)), 0);
+      const banco = _bancoSelecionado === 'bb' ? 'Banco do Brasil' : 'Itaú';
       const novos = _transacoesLidas.map(t => ({
         id: ++maxId,
         data: t.data,
@@ -1013,7 +1062,7 @@ Retorne APENAS o JSON array puro, sem markdown, sem explicação.`;
         cartao: t.cartao,
         status: 'pendente',
         entregue: null,
-        historico: [{ tipo:'criado', quando:now, razao:`Importado via imagem (${_bancoSelecionado==='bb'?'Banco do Brasil':'Itaú'})`, snapshot:{} }]
+        historico: [{ tipo:'criado', quando:now, razao:`Importado via imagem (${banco})`, snapshot:{} }]
       }));
       window._payments = [...(window._payments || []), ...novos];
       window._nextId = maxId + 1;
