@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <meta name="theme-color" content="#1a56db"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Prestação"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icon-192.png"/>
+  <title>Prestação de Contas</title>
+  <!-- v5-gemini-2026-05-11 -->
+  <style>
+    :root {
+      --blue: #1a56db; --blue-dark: #1245b5; --blue-light: #e8f0fe;
+      --green: #057a55; --green-light: #def7ec;
+      --red: #c81e1e; --red-light: #fde8e8;
+      --yellow: #723b13; --yellow-light: #fdf6b2;
+      --gray: #374151; --gray-light: #f9fafb; --gray-mid: #e5e7eb;
+      --text: #111827; --text-secondary: #6b7280;
+      --white: #ffffff; --border: #e5e7eb;
+      --radius: 10px; --radius-sm: 6px;
+      --shadow: 0 1px 3px rgba(0,0,0,.1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f3f4f6; color: var(--text); font-size: 14px; }
+
+    /* ── TOP BAR ── */
+    .topbar { background: var(--blue); color: #fff; padding: 14px 16px 10px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+    .topbar h1 { font-size: 16px; font-weight: 600; }
+    .topbar-sub { font-size: 11px; opacity: .8; margin-top: 1px; }
+    .sync-indicator { display: flex; align-items: center; gap: 5px; font-size: 11px; }
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
+    .sync-dot.off { background: #fbbf24; }
+
+    /* ── TABS ── */
+    .tabs { display: flex; background: var(--white); border-bottom: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { flex: 1; min-width: 80px; padding: 12px 8px; text-align: center; font-size: 12px; font-weight: 500; color: var(--text-secondary); border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; background: none; border-top: none; border-left: none; border-right: none; }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    /* ── PANELS ── */
+    .panel { display: none; padding: 12px; padding-bottom: 90px; }
+    .panel.active { display: block; }
+
+    /* ── CARDS / METRICS ── */
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .metric { background: var(--white); border-radius: var(--radius-sm); padding: 10px 12px; box-shadow: var(--shadow); }
+    .metric-label { font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; }
+    .metric-value { font-size: 20px; font-weight: 600; color: var(--text); }
+    .mv-green { color: var(--green); }
+    .mv-red { color: var(--red); }
+    .mv-yellow { color: var(--yellow); }
+    .mv-gray { color: var(--text-secondary); }
+
+    /* ── ALERTS ── */
+    .alertbox { border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 8px; font-size: 12px; display: flex; align-items: flex-start; gap: 8px; }
+    .alertbox.danger { background: var(--red-light); color: var(--red); }
+    .alertbox.warning { background: var(--yellow-light); color: var(--yellow); }
+    .alertbox-icon { font-size: 14px; margin-top: 1px; flex-shrink: 0; }
+
+    /* ── FILTERS ── */
+    .filters { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; margin-bottom: 10px; }
+    .filters::-webkit-scrollbar { display: none; }
+    .filter-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--white); color: var(--text-secondary); font-size: 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .filter-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+    /* ── PAYMENT CARDS ── */
+    .pay-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 10px; overflow: hidden; }
+    .pay-card.cancelado { opacity: .6; }
+    .pay-card-header { padding: 12px 14px 8px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .pay-card-title { font-size: 14px; font-weight: 600; color: var(--text); flex: 1; }
+    .pay-card-title.cancelado { text-decoration: line-through; }
+    .pay-card-meta { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 10px; }
+    .meta-row { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
+    .meta-row strong { color: var(--text); }
+    .pay-card-footer { border-top: 1px solid var(--border); padding: 8px 10px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+    .prazo-tag { font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 20px; }
+    .prazo-ok { background: var(--green-light); color: var(--green); }
+    .prazo-warn { background: var(--yellow-light); color: var(--yellow); }
+    .prazo-over { background: var(--red-light); color: var(--red); }
+    .actions { display: flex; gap: 5px; flex-wrap: wrap; }
+
+    /* ── BADGES ── */
+    .badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+    .badge-pendente { background: var(--yellow-light); color: var(--yellow); }
+    .badge-atrasado { background: var(--red-light); color: var(--red); }
+    .badge-entregue { background: var(--green-light); color: var(--green); }
+    .badge-cancelado { background: var(--gray-mid); color: var(--text-secondary); }
+    .badge-editado { background: var(--blue-light); color: var(--blue-dark); }
+
+    /* ── BUTTONS ── */
+    button { cursor: pointer; font-family: inherit; }
+    .btn { padding: 7px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--white); color: var(--text); font-size: 12px; font-weight: 500; }
+    .btn:active { opacity: .8; }
+    .btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .btn-success { background: var(--green); color: #fff; border-color: var(--green); }
+    .btn-danger { background: var(--red); color: #fff; border-color: var(--red); }
+    .btn-ghost { background: transparent; border-color: var(--border); color: var(--text-secondary); padding: 6px 10px; }
+    .btn-lg { width: 100%; padding: 14px; font-size: 15px; border-radius: var(--radius); }
+    .btn-fab { position: fixed; bottom: 24px; right: 16px; width: 56px; height: 56px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 26px; border: none; box-shadow: 0 4px 12px rgba(26,86,219,.4); display: flex; align-items: center; justify-content: center; z-index: 40; }
+
+    /* ── FORMS ── */
+    .form-group { margin-bottom: 14px; }
+    .form-label { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 5px; display: block; }
+    .form-control { width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; color: var(--text); background: var(--white); appearance: none; -webkit-appearance: none; }
+    .form-control:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,86,219,.12); }
+    .form-hint { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+    .form-hint.warn { color: var(--yellow); font-weight: 500; }
+    .form-hint.danger { color: var(--red); font-weight: 500; }
+    .form-hint.ok { color: var(--green); font-weight: 500; }
+
+    /* ── DRAWER / MODAL ── */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 60; display: none; }
+    .overlay.open { display: block; }
+    .drawer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--white); border-radius: 16px 16px 0 0; z-index: 70; transform: translateY(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); max-height: 92vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .drawer.open { transform: translateY(0); }
+    .drawer-handle { width: 36px; height: 4px; background: var(--gray-mid); border-radius: 2px; margin: 10px auto 4px; }
+    .drawer-header { padding: 6px 16px 14px; border-bottom: 1px solid var(--border); }
+    .drawer-title { font-size: 16px; font-weight: 600; }
+    .drawer-sub { font-size: 12px; color: var(--text-secondary); margin-top: 3px; }
+    .drawer-body { padding: 16px; }
+    .drawer-footer { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+    .drawer-footer button { flex: 1; }
+
+    /* ── HISTORY ── */
+    .hist-item { padding: 10px 12px; border-left: 3px solid var(--border); margin-bottom: 8px; background: var(--white); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; box-shadow: var(--shadow); }
+    .hist-item.criado { border-color: var(--green); }
+    .hist-item.edit { border-color: var(--blue); }
+    .hist-item.entregue { border-color: var(--green); }
+    .hist-item.cancelado { border-color: var(--red); }
+    .hist-tipo { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-secondary); }
+    .hist-desc { font-size: 12px; color: var(--text); margin-top: 2px; }
+    .hist-snap { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+    .hist-time { font-size: 10px; color: var(--text-secondary); margin-top: 3px; }
+
+    /* ── REL CARDS ── */
+    .rel-section { margin-bottom: 18px; }
+    .rel-section-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; text-transform: capitalize; }
+    .rel-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+    .rel-card { background: var(--white); border-radius: var(--radius-sm); padding: 10px 12px; box-shadow: var(--shadow); }
+    .rel-card-label { font-size: 10px; color: var(--text-secondary); }
+    .rel-card-val { font-size: 17px; font-weight: 600; color: var(--text); margin-top: 1px; }
+
+    /* ── LOADING / EMPTY ── */
+    .loading { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 13px; }
+    .empty { text-align: center; padding: 40px 20px; }
+    .empty-icon { font-size: 32px; margin-bottom: 8px; }
+    .empty-text { font-size: 13px; color: var(--text-secondary); }
+
+    /* ── LIMIT BAR ── */
+    .limit-bar { padding: 9px 12px; border-radius: var(--radius-sm); margin-bottom: 12px; font-size: 12px; font-weight: 500; }
+    .limit-bar.ok { background: var(--green-light); color: var(--green); }
+    .limit-bar.warn { background: var(--yellow-light); color: var(--yellow); }
+    .limit-bar.over { background: var(--red-light); color: var(--red); }
+
+    .section-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .section-title { font-size: 13px; font-weight: 600; color: var(--text); }
+
+    @media (min-width: 640px) {
+      .panel { max-width: 640px; margin: 0 auto; }
+      .drawer { max-width: 480px; left: 50%; transform: translateX(-50%) translateY(100%); right: auto; width: 100%; }
+      .drawer.open { transform: translateX(-50%) translateY(0); }
+      .btn-fab { right: calc(50% - 300px); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar h1" style="font-size:15px;font-weight:600;">Prestação de Contas</div>
+    <div class="topbar-sub">Cartão corporativo · Prazo máx. 48h</div>
+  </div>
+  <div class="sync-indicator">
+    <div class="sync-dot" id="sync-dot"></div>
+    <span id="sync-label">–</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('pagamentos',this)">Pagamentos</button>
+  <button class="tab" onclick="switchTab('historico',this)">Histórico</button>
+  <button class="tab" onclick="switchTab('relatorio',this)">Relatório</button>
+</div>
+
+<!-- PAGAMENTOS -->
+<div id="panel-pagamentos" class="panel active">
+  <div id="alert-area"></div>
+
+  <div class="metrics" id="metrics"></div>
+  <div class="filters" id="filters">
+    <button class="filter-btn active" data-f="ativos" onclick="setFilter('ativos',this)">Ativos</button>
+    <button class="filter-btn" data-f="pendente" onclick="setFilter('pendente',this)">Pendentes</button>
+    <button class="filter-btn" data-f="atrasado" onclick="setFilter('atrasado',this)">Atrasados</button>
+    <button class="filter-btn" data-f="entregue" onclick="setFilter('entregue',this)">Entregues</button>
+    <button class="filter-btn" data-f="cancelado" onclick="setFilter('cancelado',this)">Cancelados</button>
+    <button class="filter-btn" data-f="todos" onclick="setFilter('todos',this)">Todos</button>
+  </div>
+  <div id="pay-list"><div class="loading">Carregando...</div></div>
+</div>
+
+<!-- HISTÓRICO -->
+<div id="panel-historico" class="panel">
+  <div class="section-row">
+    <div class="section-title">Todas as alterações</div>
+  </div>
+  <div id="hist-list"><div class="loading">Carregando...</div></div>
+</div>
+
+<!-- RELATÓRIO -->
+<div id="panel-relatorio" class="panel">
+  <div id="rel-content"><div class="loading">Carregando...</div></div>
+</div>
+
+<!-- FAB -->
+<button class="btn-fab" onclick="openDrawer('drawer-new')" aria-label="Novo pagamento">+</button>
+<button class="btn-fab" onclick="openDrawer('drawer-import-img')" aria-label="Importar extrato" 
+  style="bottom:90px;background:#057a55;font-size:18px;width:46px;height:46px;">📷</button>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay" onclick="closeAllDrawers()"></div>
+
+<!-- DRAWER: NOVO PAGAMENTO -->
+<div class="drawer" id="drawer-new">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Novo pagamento</div>
+    <div class="drawer-sub">O prazo de 48h conta a partir da data do pagamento</div>
+  </div>
+  <div class="drawer-body">
+    <div class="form-group">
+      <label class="form-label">Descrição *</label>
+      <input class="form-control" id="n-desc" type="text" placeholder="Ex: Compra de material de escritório"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Fornecedor *</label>
+      <input class="form-control" id="n-forn" type="text" placeholder="Nome do fornecedor"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Valor (R$) *</label>
+      <input class="form-control" id="n-val" type="number" placeholder="0,00" min="0" step="0.01" inputmode="decimal"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cartão utilizado *</label>
+      <input class="form-control" id="n-cartao" type="text" placeholder="Ex: Visa final 1234"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data do pagamento *</label>
+      <input class="form-control" id="n-data" type="date" onchange="updateNewPrazo()"/>
+      <div class="form-hint warn" id="n-prazo-hint"></div>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" onclick="closeAllDrawers()">Cancelar</button>
+    <button class="btn btn-primary" onclick="addPayment()">Salvar pagamento</button>
+  </div>
+</div>
+
+<!-- DRAWER: ENTREGA -->
+<div class="drawer" id="drawer-entrega">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Registrar entrega ao financeiro</div>
+    <div class="drawer-sub" id="ent-sub"></div>
+  </div>
+  <div class="drawer-body">
+    <div class="limit-bar" id="ent-limit"></div>
+    <div class="form-group">
+      <label class="form-label">Setor que recebeu *</label>
+      <input class="form-control" id="ent-setor" type="text" placeholder="Ex: Financeiro, Contabilidade"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Pessoa que recebeu *</label>
+      <input class="form-control" id="ent-pessoa" type="text" placeholder="Nome completo"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data da entrega *</label>
+      <input class="form-control" id="ent-data" type="date" onchange="checkEntDentro48()"/>
+      <div class="form-hint" id="ent-48warn"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Observação</label>
+      <input class="form-control" id="ent-obs" type="text" placeholder="Ex: Nota fiscal entregue junto"/>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" onclick="closeAllDrawers()">Cancelar</button>
+    <button class="btn btn-success" onclick="confirmEntrega()">Confirmar entrega</button>
+  </div>
+</div>
+
+<!-- DRAWER: EDITAR -->
+<div class="drawer" id="drawer-edit">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Editar pagamento</div>
+    <div class="drawer-sub" id="edit-sub"></div>
+  </div>
+  <div class="drawer-body">
+    <div class="form-group">
+      <label class="form-label">Descrição</label>
+      <input class="form-control" id="edit-desc" type="text"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Fornecedor</label>
+      <input class="form-control" id="edit-forn" type="text"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Valor (R$)</label>
+      <input class="form-control" id="edit-val" type="number" min="0" step="0.01" inputmode="decimal"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cartão utilizado</label>
+      <input class="form-control" id="edit-cartao" type="text"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data do pagamento</label>
+      <input class="form-control" id="edit-data" type="date"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Motivo da edição *</label>
+      <input class="form-control" id="edit-razao" type="text" placeholder="Ex: Valor incorreto, fornecedor errado..."/>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" onclick="closeAllDrawers()">Cancelar</button>
+    <button class="btn btn-primary" onclick="confirmEdit()">Salvar edição</button>
+  </div>
+</div>
+
+<!-- DRAWER: CANCELAR -->
+<div class="drawer" id="drawer-cancel">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Cancelar registro</div>
+    <div class="drawer-sub" id="cancel-sub"></div>
+  </div>
+  <div class="drawer-body">
+    <div class="alertbox danger">
+      <span class="alertbox-icon">⚠️</span>
+      <span>O registro <strong>não será apagado</strong>. Ficará marcado como cancelado no histórico para auditoria completa.</span>
+    </div>
+    <div class="form-group" style="margin-top:14px;">
+      <label class="form-label">Motivo do cancelamento *</label>
+      <input class="form-control" id="cancel-razao" type="text" placeholder="Ex: Pagamento duplicado, erro de cadastro..."/>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" onclick="closeAllDrawers()">Voltar</button>
+    <button class="btn btn-danger" onclick="confirmCancel()">Confirmar cancelamento</button>
+  </div>
+</div>
+
+<!-- DRAWER: HISTÓRICO DO ITEM -->
+<div class="drawer" id="drawer-hist-item">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Histórico do registro</div>
+    <div class="drawer-sub" id="hist-item-sub"></div>
+  </div>
+  <div class="drawer-body" id="hist-item-body"></div>
+  <div class="drawer-footer">
+    <button class="btn btn-ghost" style="flex:1" onclick="closeAllDrawers()">Fechar</button>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ─── FIREBASE CONFIG — substitua com os seus dados ───
+  const firebaseConfig = {
+    apiKey: "AIzaSyCnjWxsT7WXDrdy0D6tghBGLK_6cVM09nM",
+    authDomain: "controle-de-pagamento-17df9.firebaseapp.com",
+    databaseURL: "https://controle-de-pagamento-17df9-default-rtdb.firebaseio.com",
+    projectId: "controle-de-pagamento-17df9",
+    storageBucket: "controle-de-pagamento-17df9.firebasestorage.app",
+    messagingSenderId: "637916614200",
+    appId: "1:637916614200:web:9ddb019a280e3ffcf460cd"
+  };
+  // ─────────────────────────────────────────────────────
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const dataRef = ref(db, 'prestacao');
+
+  let _saving = false;
+  window._fbSave = async (data) => {
+    _saving = true;
+    await set(dataRef, data);
+    setTimeout(()=>{ _saving=false; }, 1500);
+  };
+
+  onValue(dataRef, (snapshot) => {
+    if (_saving) return;
+    const val = snapshot.val();
+    if (val) {
+      window._payments = (val.payments || []).map(p => ({...p, id: Number(p.id)}));
+      window._nextId = Number(val.nextId) || 1;
+    } else {
+      window._payments = [];
+      window._nextId = 1;
+    }
+    setSyncState(true);
+    render();
+    renderHist();
+    renderRel();
+  }, (error) => {
+    console.error(error);
+    setSyncState(false);
+  });
+</script>
+
+<script>
+  // ── STATE ──
+  window._payments = window._payments || [];
+  window._nextId = window._nextId || 1;
+  let currentFilter = 'ativos';
+  let pendingId = null;
+  let activeDrawer = null;
+
+  // ── UTILS ──
+  function parseD(s) { return new Date(s + 'T00:00:00'); }
+  function fmtD(s) { return parseD(s).toLocaleDateString('pt-BR'); }
+  function fmtDT(iso) { return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+  function fmtM(v) { return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function todayISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+  function prazo48ISO(d) { const dt = parseD(d); dt.setDate(dt.getDate() + 2); return dt.toISOString().split('T')[0]; }
+  function horasRest(d) { const lim = parseD(prazo48ISO(d)); return Math.round((lim - new Date()) / 3600000); }
+
+  function getStatus(p) {
+    if (p.status === 'entregue' || p.status === 'cancelado') return p.status;
+    return horasRest(p.data) < 0 ? 'atrasado' : 'pendente';
+  }
+
+  async function save() {
+    if (window._fbSave) {
+      await window._fbSave({ payments: window._payments, nextId: window._nextId });
+    }
+  }
+
+  function setSyncState(ok, msg) {
+    document.getElementById('sync-dot').className = 'sync-dot' + (ok ? '' : ' off');
+    document.getElementById('sync-label').textContent = ok ? 'Online' : (msg || 'Sem conexão — verifique o Firebase');
+  }
+
+  // ── DRAWER ──
+  function openDrawer(id) {
+    closeAllDrawers();
+    document.getElementById('overlay').classList.add('open');
+    document.getElementById(id).classList.add('open');
+    activeDrawer = id;
+    document.body.style.overflow = 'hidden';
+  }
+  function closeAllDrawers() {
+    document.querySelectorAll('.drawer').forEach(d => d.classList.remove('open'));
+    document.getElementById('overlay').classList.remove('open');
+    activeDrawer = null;
+    document.body.style.overflow = '';
+  }
+
+  // ── TABS ──
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + name).classList.add('active');
+  }
+
+  // ── FILTERS ──
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+    render();
+  }
+
+  // ── NEW PAYMENT ──
+  function updateNewPrazo() {
+    const d = document.getElementById('n-data').value;
+    const hint = document.getElementById('n-prazo-hint');
+    if (!d) { hint.textContent = ''; return; }
+    hint.textContent = `⏱ Prazo máximo para entrega: ${fmtD(prazo48ISO(d))}`;
+  }
+
+  async function addPayment() {
+    const desc = document.getElementById('n-desc').value.trim();
+    const forn = document.getElementById('n-forn').value.trim();
+    const val = parseFloat(document.getElementById('n-val').value);
+    const cartao = document.getElementById('n-cartao').value.trim();
+    const data = document.getElementById('n-data').value;
+    if (!desc || !forn || isNaN(val) || !cartao || !data) { alert('Preencha todos os campos obrigatórios.'); return; }
+    const now = new Date().toISOString();
+    const novo = { id: window._nextId++, data, desc, forn, valor: val, cartao, status: 'pendente', entregue: null,
+      historico: [{ tipo: 'criado', quando: now, razao: '', snapshot: { desc, forn, valor: val, cartao, data } }] };
+    window._payments.unshift(novo);
+    closeAllDrawers(); pendingId = null;
+    ['n-desc','n-forn','n-val','n-cartao','n-data'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('n-prazo-hint').textContent = '';
+    await save(); render(); renderHist(); renderRel();
+  }
+
+  // ── ENTREGA ──
+  function openEntrega(id) {
+    pendingId = Number(id);
+    const p = window._payments.find(x => Number(x.id) === Number(id));
+    document.getElementById('ent-sub').textContent = `${p.desc} — ${fmtM(p.valor)}`;
+    const h = horasRest(p.data);
+    const lim = document.getElementById('ent-limit');
+    if (h < 0) { lim.className = 'limit-bar over'; lim.textContent = `⚠️ Prazo vencido há ${Math.abs(h)}h — limite era ${fmtD(prazo48ISO(p.data))}`; }
+    else if (h <= 12) { lim.className = 'limit-bar warn'; lim.textContent = `⏱ Urgente! ${h}h restantes — limite: ${fmtD(prazo48ISO(p.data))}`; }
+    else { lim.className = 'limit-bar ok'; lim.textContent = `✓ Dentro do prazo — ${h}h restantes — limite: ${fmtD(prazo48ISO(p.data))}`; }
+    ['ent-setor','ent-pessoa','ent-obs'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('ent-data').value = todayISO();
+    document.getElementById('ent-48warn').textContent = '';
+    document.getElementById('ent-48warn').className = 'form-hint';
+    openDrawer('drawer-entrega');
+  }
+
+  function checkEntDentro48() {
+    const p = window._payments.find(x => Number(x.id) === Number(pendingId));
+    if (!p) return;
+    const de = document.getElementById('ent-data').value;
+    const hint = document.getElementById('ent-48warn');
+    if (parseD(de) > parseD(prazo48ISO(p.data))) {
+      hint.textContent = '⚠️ Data posterior a 48h — será registrado como entregue FORA DO PRAZO.';
+      hint.className = 'form-hint danger';
+    } else {
+      hint.textContent = '✓ Dentro do prazo de 48h.';
+      hint.className = 'form-hint ok';
+    }
+  }
+
+  async function confirmEntrega() {
+    const setor = document.getElementById('ent-setor').value.trim();
+    const pessoa = document.getElementById('ent-pessoa').value.trim();
+    const de = document.getElementById('ent-data').value;
+    if (!setor || !pessoa || !de) { alert('Preencha setor, pessoa e data.'); return; }
+    const obs = document.getElementById('ent-obs').value.trim();
+    const capturedId = pendingId;
+    const p = window._payments.find(x => Number(x.id) === Number(capturedId));
+    if (!p) { alert('Erro: registro não encontrado. Feche e tente novamente.'); return; }
+    const dentroD = parseD(de) <= parseD(prazo48ISO(p.data));
+    p.status = 'entregue';
+    p.entregue = { setor, pessoa, dataEntrega: de, obs, dentroD };
+    p.historico.push({ tipo: 'entregue', quando: new Date().toISOString(), razao: `Entregue a ${pessoa} / ${setor}`, snapshot: null });
+    pendingId = null;
+    closeAllDrawers();
+    await save();
+    render(); renderHist(); renderRel();
+  }
+
+  // ── EDITAR ──
+  function openEdit(id) {
+    pendingId = Number(id);
+    const p = window._payments.find(x => Number(x.id) === Number(id));
+    document.getElementById('edit-sub').textContent = `#${p.id} — ${fmtD(p.data)}`;
+    document.getElementById('edit-desc').value = p.desc;
+    document.getElementById('edit-forn').value = p.forn;
+    document.getElementById('edit-val').value = p.valor;
+    document.getElementById('edit-resp').value = p.resp;
+    document.getElementById('edit-data').value = p.data;
+    document.getElementById('edit-razao').value = '';
+    openDrawer('drawer-edit');
+  }
+
+  async function confirmEdit() {
+    const razao = document.getElementById('edit-razao').value.trim();
+    if (!razao) { alert('Informe o motivo da edição.'); return; }
+    const capturedId = pendingId;
+    const p = window._payments.find(x => Number(x.id) === Number(capturedId));
+    if (!p) { alert('Erro: registro não encontrado. Feche e tente novamente.'); return; }
+    const snap = { desc: p.desc, forn: p.forn, valor: p.valor, cartao: p.cartao, data: p.data };
+    p.desc = document.getElementById('edit-desc').value.trim() || p.desc;
+    p.forn = document.getElementById('edit-forn').value.trim() || p.forn;
+    p.valor = parseFloat(document.getElementById('edit-val').value) || p.valor;
+    p.cartao = document.getElementById('edit-cartao').value.trim() || p.cartao;
+    p.data = document.getElementById('edit-data').value || p.data;
+    p.historico.push({ tipo: 'edit', quando: new Date().toISOString(), razao, snapshot: snap });
+    pendingId = null;
+    closeAllDrawers();
+    await save();
+    render(); renderHist(); renderRel();
+  }
+
+  // ── CANCELAR ──
+  function openCancel(id) {
+    pendingId = Number(id);
+    const p = window._payments.find(x => Number(x.id) === Number(id));
+    document.getElementById('cancel-sub').textContent = `#${p.id} — ${p.desc} — ${fmtM(p.valor)}`;
+    document.getElementById('cancel-razao').value = '';
+    openDrawer('drawer-cancel');
+  }
+
+  async function confirmCancel() {
+    const razao = document.getElementById('cancel-razao').value.trim();
+    if (!razao) { alert('Informe o motivo do cancelamento.'); return; }
+    const capturedId = pendingId;
+    const p = window._payments.find(x => Number(x.id) === Number(capturedId));
+    if (!p) { alert('Erro: registro não encontrado. Feche e tente novamente.'); return; }
+    p.status = 'cancelado';
+    p.historico.push({ tipo: 'cancelado', quando: new Date().toISOString(), razao, snapshot: null });
+    pendingId = null;
+    closeAllDrawers();
+    await save();
+    render(); renderHist(); renderRel();
+  }
+
+  // ── HISTÓRICO DO ITEM ──
+  function openHistItem(id) {
+    const p = window._payments.find(x => Number(x.id) === Number(id));
+    document.getElementById('hist-item-sub').textContent = `#${p.id} — ${p.desc}`;
+    const tipoLabel = { criado: 'Criado', edit: 'Editado', entregue: 'Entregue ao financeiro', cancelado: 'Cancelado' };
+    const evts = [...p.historico].reverse();
+    document.getElementById('hist-item-body').innerHTML = evts.map(h => `
+      <div class="hist-item ${h.tipo}">
+        <div class="hist-tipo">${tipoLabel[h.tipo] || h.tipo}</div>
+        ${h.razao ? `<div class="hist-desc">${h.razao}</div>` : ''}
+        ${h.snapshot ? `<div class="hist-snap">${h.snapshot.desc} · ${h.snapshot.forn} · ${fmtM(h.snapshot.valor)} · ${h.snapshot.resp}</div>` : ''}
+        <div class="hist-time">${fmtDT(h.quando)}</div>
+      </div>`).join('');
+    openDrawer('drawer-hist-item');
+  }
+
+  // ── RENDER PAYMENTS ──
+  function render() {
+    const payments = window._payments || [];
+    const filtered = payments.filter(p => {
+      const s = getStatus(p);
+      if (currentFilter === 'ativos') return s !== 'cancelado';
+      if (currentFilter === 'todos') return true;
+      return s === currentFilter;
+    });
+
+    // metrics
+    const ativos = payments.filter(p => getStatus(p) !== 'cancelado');
+    const ent = ativos.filter(p => getStatus(p) === 'entregue').length;
+    const atr = ativos.filter(p => getStatus(p) === 'atrasado').length;
+    const pend = ativos.filter(p => getStatus(p) === 'pendente').length;
+    const can = payments.filter(p => getStatus(p) === 'cancelado').length;
+    const urg = ativos.filter(p => { const h = horasRest(p.data); return getStatus(p) === 'pendente' && h >= 0 && h <= 24; }).length;
+    const valPend = ativos.filter(p => getStatus(p) !== 'entregue').reduce((a, p) => a + Number(p.valor), 0);
+
+    document.getElementById('metrics').innerHTML = `
+      <div class="metric"><div class="metric-label">Entregues</div><div class="metric-value mv-green">${ent}</div></div>
+      <div class="metric"><div class="metric-label">Pendentes</div><div class="metric-value mv-yellow">${pend}</div></div>
+      <div class="metric"><div class="metric-label">Atrasados</div><div class="metric-value mv-red">${atr}</div></div>
+      <div class="metric"><div class="metric-label">Urgentes</div><div class="metric-value ${urg > 0 ? 'mv-yellow' : ''}">${urg}</div></div>
+      <div class="metric"><div class="metric-label">A prestar</div><div class="metric-value" style="font-size:13px;">${fmtM(valPend)}</div></div>
+      <div class="metric"><div class="metric-label">Cancelados</div><div class="metric-value mv-gray">${can}</div></div>
+    `;
+
+    // alerts
+    let alerts = '';
+    if (atr > 0) alerts += `<div class="alertbox danger"><span class="alertbox-icon">⚠️</span><span>${atr} pagamento${atr > 1 ? 's' : ''} passaram de 48h sem prestação de contas.</span></div>`;
+    if (urg > 0) alerts += `<div class="alertbox warning"><span class="alertbox-icon">⏱</span><span>${urg} pagamento${urg > 1 ? 's' : ''} vencem nas próximas 24h — aja agora.</span></div>`;
+    document.getElementById('alert-area').innerHTML = alerts;
+
+    // list
+    if (!filtered.length) {
+      document.getElementById('pay-list').innerHTML = `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhum registro encontrado</div></div>`;
+      return;
+    }
+
+    filtered.sort((a, b) => b.data.localeCompare(a.data));
+    document.getElementById('pay-list').innerHTML = filtered.map(p => {
+      const s = getStatus(p);
+      const isCan = s === 'cancelado';
+      const isEnt = s === 'entregue';
+      const hasEdit = p.historico.some(h => h.tipo === 'edit');
+
+      // prazo tag
+      let prazoTag = '';
+      if (!isCan && !isEnt) {
+        const h = horasRest(p.data);
+        if (h < 0) prazoTag = `<span class="prazo-tag prazo-over">Atrasado ${Math.abs(h)}h</span>`;
+        else if (h <= 6) prazoTag = `<span class="prazo-tag prazo-over">⚠️ ${h}h restantes</span>`;
+        else if (h <= 24) prazoTag = `<span class="prazo-tag prazo-warn">⏱ ${h}h restantes</span>`;
+        else prazoTag = `<span class="prazo-tag prazo-ok">Prazo: ${fmtD(prazo48ISO(p.data))}</span>`;
+      }
+
+      // badge
+      const badgeMap = { pendente: 'badge-pendente', atrasado: 'badge-atrasado', entregue: 'badge-entregue', cancelado: 'badge-cancelado' };
+      const labelMap = { pendente: 'Pendente', atrasado: 'Atrasado', entregue: 'Entregue', cancelado: 'Cancelado' };
+      let badges = `<span class="badge ${badgeMap[s]}">${labelMap[s]}</span>`;
+      if (hasEdit) badges += ` <span class="badge badge-editado">editado</span>`;
+
+      // entregue info
+      let entInfo = '';
+      if (isEnt && p.entregue) {
+        const e = p.entregue;
+        const prazoLabel = e.dentroD ? '<span style="color:#057a55;font-size:11px;">✓ No prazo</span>' : '<span style="color:#c81e1e;font-size:11px;">⚠️ Fora do prazo</span>';
+        entInfo = `<div class="meta-row">👤 <strong>${e.pessoa}</strong> · ${e.setor} · ${fmtD(e.dataEntrega)} · ${prazoLabel}</div>`;
+      }
+
+      // actions
+      let acts = '';
+      if (!isCan && !isEnt) acts += `<button class="btn btn-success" onclick="openEntrega(${p.id})">Entregue</button>`;
+      if (!isCan) acts += `<button class="btn" onclick="openEdit(${p.id})">Editar</button>`;
+      if (!isCan) acts += `<button class="btn btn-ghost" onclick="openCancel(${p.id})">Cancelar</button>`;
+      acts += `<button class="btn btn-ghost" onclick="openHistItem(${p.id})">Histórico</button>`;
+
+      return `
+        <div class="pay-card ${isCan ? 'cancelado' : ''}">
+          <div class="pay-card-header">
+            <div class="pay-card-title ${isCan ? 'cancelado' : ''}">${p.forn}</div>
+            <div style="padding:0 14px 4px;font-size:12px;color:#6b7280;">${p.desc}</div>
+            <div>${badges}</div>
+          </div>
+          <div class="pay-card-meta">
+            <div class="meta-row">📅 <strong>${fmtD(p.data)}</strong></div>
+            <div class="meta-row">🏪 ${p.forn}</div>
+            <div class="meta-row">💰 <strong>${fmtM(p.valor)}</strong></div>
+            <div class="meta-row">💳 ${p.cartao}</div>
+            ${entInfo}
+          </div>
+          <div class="pay-card-footer">
+            ${prazoTag}
+            <div class="actions">${acts}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── RENDER HISTÓRICO ──
+  function renderHist() {
+    const payments = window._payments || [];
+    const tipoLabel = { criado: 'Criado', edit: 'Editado', entregue: 'Entregue ao financeiro', cancelado: 'Cancelado' };
+    const all = [];
+    payments.forEach(p => {
+      p.historico.forEach(h => all.push({ ...h, pId: p.id, pDesc: p.desc }));
+    });
+    all.sort((a, b) => b.quando.localeCompare(a.quando));
+    if (!all.length) { document.getElementById('hist-list').innerHTML = `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma alteração registrada</div></div>`; return; }
+    document.getElementById('hist-list').innerHTML = all.map(h => `
+      <div class="hist-item ${h.tipo}">
+        <div class="hist-tipo">${tipoLabel[h.tipo] || h.tipo} · #${h.pId} — ${h.pDesc}</div>
+        ${h.razao ? `<div class="hist-desc">${h.razao}</div>` : ''}
+        ${h.snapshot ? `<div class="hist-snap">${h.snapshot.desc} · ${h.snapshot.forn} · ${fmtM(h.snapshot.valor)}</div>` : ''}
+        <div class="hist-time">${fmtDT(h.quando)}</div>
+      </div>`).join('');
+  }
+
+  // ── RENDER RELATÓRIO ──
+  function renderRel() {
+    const payments = window._payments || [];
+    const ativos = payments.filter(p => getStatus(p) !== 'cancelado');
+    const meses = {};
+    ativos.forEach(p => {
+      const d = parseD(p.data);
+      const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      if (!meses[k]) meses[k] = { k, label, total: 0, ent: 0, atr: 0, pend: 0, valor: 0, fPrazo: 0 };
+      meses[k].total++;
+      meses[k].valor += Number(p.valor);
+      const s = getStatus(p);
+      if (s === 'entregue') { meses[k].ent++; if (p.entregue && !p.entregue.dentroD) meses[k].fPrazo++; }
+      else if (s === 'atrasado') meses[k].atr++;
+      else meses[k].pend++;
+    });
+
+    const sorted = Object.values(meses).sort((a, b) => b.k.localeCompare(a.k));
+    const totGeral = ativos.reduce((a, p) => a + Number(p.valor), 0);
+    const totEntV = ativos.filter(p => getStatus(p) === 'entregue').reduce((a, p) => a + Number(p.valor), 0);
+    const totAtr = ativos.filter(p => getStatus(p) === 'atrasado').length;
+    const totCan = payments.filter(p => getStatus(p) === 'cancelado').length;
+    const totEdits = payments.reduce((a, p) => a + p.historico.filter(h => h.tipo === 'edit').length, 0);
+
+    let html = `
+      <div class="rel-section">
+        <div class="rel-section-title">Resumo geral — 3 meses</div>
+        <div class="rel-grid">
+          <div class="rel-card"><div class="rel-card-label">Total ativo</div><div class="rel-card-val">${ativos.length}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Volume total</div><div class="rel-card-val" style="font-size:14px;">${fmtM(totGeral)}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Valor entregue</div><div class="rel-card-val mv-green" style="font-size:14px;">${fmtM(totEntV)}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Atrasados</div><div class="rel-card-val mv-red">${totAtr}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Cancelados</div><div class="rel-card-val mv-gray">${totCan}</div></div>
+          <div class="rel-card"><div class="rel-card-label">Edições feitas</div><div class="rel-card-val">${totEdits}</div></div>
+        </div>
+      </div>`;
+
+    sorted.forEach(m => {
+      html += `
+        <div class="rel-section">
+          <div class="rel-section-title">${m.label}</div>
+          <div class="rel-grid">
+            <div class="rel-card"><div class="rel-card-label">Pagamentos</div><div class="rel-card-val">${m.total}</div></div>
+            <div class="rel-card"><div class="rel-card-label">Volume</div><div class="rel-card-val" style="font-size:14px;">${fmtM(m.valor)}</div></div>
+            <div class="rel-card"><div class="rel-card-label">No prazo</div><div class="rel-card-val mv-green">${m.ent - m.fPrazo}</div></div>
+            <div class="rel-card"><div class="rel-card-label">Fora do prazo</div><div class="rel-card-val ${m.fPrazo > 0 ? 'mv-red' : ''}">${m.fPrazo}</div></div>
+            <div class="rel-card"><div class="rel-card-label">Em aberto</div><div class="rel-card-val ${m.atr > 0 ? 'mv-red' : 'mv-yellow'}">${m.pend + m.atr}</div></div>
+          </div>
+        </div>`;
+    });
+
+    html += `
+      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Exportar relatório</div>
+        <button class="btn btn-primary" onclick="exportarExcel()" style="width:100%;padding:14px;font-size:14px;border-radius:10px;" id="btn-export">
+          📊 Baixar Excel — Apresentação de Diretoria
+        </button>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;text-align:center;">
+          Dashboard executivo · Pagamentos · Resumo mensal · Pendências · Auditoria
+        </div>
+      </div>`;
+    document.getElementById('rel-content').innerHTML = html;
+  }
+
+
+  function exportarExcel() {
+    const btn = document.getElementById('btn-export');
+    if (btn) { btn.innerHTML = '⏳ Gerando relatório executivo...'; btn.disabled = true; }
+
+    const payments = window._payments || [];
+    if (!payments.length) {
+      alert('Nenhum pagamento para exportar.');
+      if(btn){btn.innerHTML='📊 Baixar Excel — Apresentação de Diretoria';btn.disabled=false;}
+      return;
+    }
+
+    const paymentsJson = JSON.stringify({ payments, nextId: window._nextId || 1 });
+    const scriptB64 = 'aW1wb3J0IHN5cywganNvbgpmcm9tIGRhdGV0aW1lIGltcG9ydCBkYXRldGltZSwgZGF0ZSwgdGltZWRlbHRhCmZyb20gb3BlbnB5eGwgaW1wb3J0IFdvcmtib29rCmZyb20gb3BlbnB5eGwuc3R5bGVzIGltcG9ydCBGb250LCBQYXR0ZXJuRmlsbCwgQWxpZ25tZW50LCBCb3JkZXIsIFNpZGUsIEdyYWRpZW50RmlsbApmcm9tIG9wZW5weXhsLnV0aWxzIGltcG9ydCBnZXRfY29sdW1uX2xldHRlcgpmcm9tIG9wZW5weXhsLmNoYXJ0IGltcG9ydCBCYXJDaGFydCwgUGllQ2hhcnQsIFJlZmVyZW5jZQpmcm9tIG9wZW5weXhsLmNoYXJ0LnNlcmllcyBpbXBvcnQgRGF0YVBvaW50CgojIOKUgOKUgCBEYWRvcyB2aWEgc3RkaW4g4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSACmRhdGEgPSBqc29uLmxvYWRzKHN5cy5zdGRpbi5yZWFkKCkpCnBheW1lbnRzID0gZGF0YS5nZXQoInBheW1lbnRzIiwgW10pCmZvciBwIGluIHBheW1lbnRzOgogICAgcFsiaWQiXSA9IGludChwLmdldCgiaWQiLCAwKSkKICAgIHAuc2V0ZGVmYXVsdCgiaGlzdG9yaWNvIiwgW10pCiAgICBwLnNldGRlZmF1bHQoImVudHJlZ3VlIiwgTm9uZSkKCnRvZGF5ID0gZGF0ZS50b2RheSgpCgpkZWYgcGFyc2VfZGF0ZShzKToKICAgIHRyeTogcmV0dXJuIGRhdGV0aW1lLnN0cnB0aW1lKHMsICIlWS0lbS0lZCIpLmRhdGUoKQogICAgZXhjZXB0OiByZXR1cm4gdG9kYXkKCmRlZiBwcmF6bzQ4KGQpOiByZXR1cm4gcGFyc2VfZGF0ZShkKSArIHRpbWVkZWx0YShkYXlzPTIpCgpkZWYgZ2V0X3N0YXR1cyhwKToKICAgIGlmIHAuZ2V0KCJzdGF0dXMiKSBpbiAoImVudHJlZ3VlIiwgImNhbmNlbGFkbyIpOiByZXR1cm4gcFsic3RhdHVzIl0KICAgIHJldHVybiAiYXRyYXNhZG8iIGlmIHByYXpvNDgocFsiZGF0YSJdKSA8IHRvZGF5IGVsc2UgInBlbmRlbnRlIgoKZGVmIGZtdF9icmwodik6CiAgICByZXR1cm4gZiJSJCB7ZmxvYXQodik6LC4yZn0iLnJlcGxhY2UoIiwiLCJYIikucmVwbGFjZSgiLiIsIiwiKS5yZXBsYWNlKCJYIiwiLiIpCgpkZWYgZm10X2Qocyk6CiAgICB0cnk6IHJldHVybiBwYXJzZV9kYXRlKHMpLnN0cmZ0aW1lKCIlZC8lbS8lWSIpCiAgICBleGNlcHQ6IHJldHVybiBzdHIocykKCiMg4pSA4pSAIFBhbGV0YSDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAKQVpVTCAgID0gIjFGMzg2NCI7IEFaVUxfTSA9ICIyRTc1QjYiOyBBWlVMX0NMID0gIkQ2RTRGMCIKVkVSREUgID0gIjFFNkIzQyI7IFZFUkRFX0NMPSAiRDVFRkRGIgpWRVJNICAgPSAiQzAwMDAwIjsgVkVSTV9DTCA9ICJGQ0U0RDYiCkFNQVIgICA9ICI3RjYwMDAiOyBBTUFSX0NMID0gIkZGRjJDQyIKQ0lOWkEgID0gIjU5NTk1OSI7IENJTlpBX0NMPSAiRjJGMkYyIjsgQ0lOWkFfQUxUPSJGQUZBRkEiCkJSQU5DTyA9ICJGRkZGRkYiOyBPVVJPICAgPSAiQzlBODRDIgoKU0JHID0geyJlbnRyZWd1ZSI6VkVSREVfQ0wsImF0cmFzYWRvIjpWRVJNX0NMLCJwZW5kZW50ZSI6QU1BUl9DTCwiY2FuY2VsYWRvIjpDSU5aQV9DTH0KU0NMID0geyJlbnRyZWd1ZSI6VkVSREUsImF0cmFzYWRvIjpWRVJNLCJwZW5kZW50ZSI6QU1BUiwiY2FuY2VsYWRvIjpDSU5aQX0KU0xCID0geyJlbnRyZWd1ZSI6IuKchSBFbnRyZWd1ZSIsImF0cmFzYWRvIjoi8J+UtCBBdHJhc2FkbyIsInBlbmRlbnRlIjoi8J+VkCBQZW5kZW50ZSIsImNhbmNlbGFkbyI6IuKdjCBDYW5jZWxhZG8ifQoKZGVmIEYoaGV4Xyk6IHJldHVybiBQYXR0ZXJuRmlsbCgic29saWQiLCBmZ0NvbG9yPWhleF8pCmRlZiBGdChib2xkPUZhbHNlLHNpemU9MTAsY29sb3I9IjAwMDAwMCIsaXRhbGljPUZhbHNlKToKICAgIHJldHVybiBGb250KG5hbWU9IkFyaWFsIixib2xkPWJvbGQsc2l6ZT1zaXplLGNvbG9yPWNvbG9yLGl0YWxpYz1pdGFsaWMpCmRlZiBBbChoPSJjZW50ZXIiLHY9ImNlbnRlciIsd3JhcD1GYWxzZSk6CiAgICByZXR1cm4gQWxpZ25tZW50KGhvcml6b250YWw9aCx2ZXJ0aWNhbD12LHdyYXBfdGV4dD13cmFwKQpkZWYgQmQoY29sb3I9IkJGQkZCRiIpOgogICAgcz1TaWRlKHN0eWxlPSJ0aGluIixjb2xvcj1jb2xvcikKICAgIHJldHVybiBCb3JkZXIobGVmdD1zLHJpZ2h0PXMsdG9wPXMsYm90dG9tPXMpCmRlZiBCZE0oKToKICAgIG09U2lkZShzdHlsZT0ibWVkaXVtIixjb2xvcj1BWlVMX00pCiAgICByZXR1cm4gQm9yZGVyKGxlZnQ9bSxyaWdodD1tLHRvcD1tLGJvdHRvbT1tKQoKZGVmIHNjKHdzLCByZWYsIHYsIGJvbGQ9RmFsc2UsIHNpemU9MTAsIGNvbG9yPSIwMDAwMDAiLCBiZz1Ob25lLAogICAgICAgaD0iY2VudGVyIiwgdl89ImNlbnRlciIsIHdyYXA9RmFsc2UsIGl0YWxpYz1GYWxzZSwKICAgICAgIGJvcmRlcj1UcnVlLCBudW1fZm10PU5vbmUsIHJvd19oPU5vbmUpOgogICAgbWVyZ2UgPSAiOiIgaW4gcmVmCiAgICBpZiBtZXJnZToKICAgICAgICB3cy5tZXJnZV9jZWxscyhyZWYpCiAgICAgICAgY2VsbF9yZWYgPSByZWYuc3BsaXQoIjoiKVswXQogICAgZWxzZToKICAgICAgICBjZWxsX3JlZiA9IHJlZgogICAgYyA9IHdzW2NlbGxfcmVmXQogICAgYy52YWx1ZSA9IHYKICAgIGMuZm9udCA9IEZ0KGJvbGQsIHNpemUsIGNvbG9yLCBpdGFsaWMpCiAgICBpZiBiZzogYy5maWxsID0gRihiZykKICAgIGMuYWxpZ25tZW50ID0gQWwoaCwgdl8sIHdyYXApCiAgICBpZiBib3JkZXI6IGMuYm9yZGVyID0gQmQoKQogICAgaWYgbnVtX2ZtdDogYy5udW1iZXJfZm9ybWF0ID0gbnVtX2ZtdAogICAgcmV0dXJuIGMKCmRlZiBzZXRfcm93X2god3MsIHJvdywgaCk6IHdzLnJvd19kaW1lbnNpb25zW3Jvd10uaGVpZ2h0ID0gaApkZWYgc2V0X2NvbF93KHdzLCBjb2wsIHcpOiB3cy5jb2x1bW5fZGltZW5zaW9uc1tnZXRfY29sdW1uX2xldHRlcihjb2wpXS53aWR0aCA9IHcKCmRlZiBoZHIod3MsIHJvdywgY29scywgdGV4dHMsIGJnPUFaVUwsIGNvbG9yPUJSQU5DTywgaGVpZ2h0PTE4KToKICAgIGZvciBjaSwgdHh0IGluIGVudW1lcmF0ZSh0ZXh0cywgY29scyk6CiAgICAgICAgYyA9IHdzLmNlbGwocm93PXJvdywgY29sdW1uPWNpLCB2YWx1ZT10eHQpCiAgICAgICAgYy5mb250ID0gRnQoVHJ1ZSwgOSwgY29sb3IpCiAgICAgICAgYy5maWxsID0gRihiZykKICAgICAgICBjLmFsaWdubWVudCA9IEFsKHdyYXA9VHJ1ZSkKICAgICAgICBjLmJvcmRlciA9IEJkKCkKICAgIHdzLnJvd19kaW1lbnNpb25zW3Jvd10uaGVpZ2h0ID0gaGVpZ2h0CgpkZWYgZGF0YV9yb3cod3MsIHJvdywgY29sX3N0YXJ0LCB2YWxzLCBiZz1CUkFOQ08sIGFsaWducz1Ob25lLCBib2xkcz1Ob25lLAogICAgICAgICAgICAgY29sb3JzPU5vbmUsIGZtdHM9Tm9uZSwgaGVpZ2h0PTE1KToKICAgIGZvciBjaSwgdiBpbiBlbnVtZXJhdGUodmFscyk6CiAgICAgICAgY29sID0gY29sX3N0YXJ0ICsgY2kKICAgICAgICBjID0gd3MuY2VsbChyb3c9cm93LCBjb2x1bW49Y29sLCB2YWx1ZT12KQogICAgICAgIGJnMiA9IGJnW2NpXSBpZiBpc2luc3RhbmNlKGJnLCBsaXN0KSBlbHNlIGJnCiAgICAgICAgYWwgID0gYWxpZ25zW2NpXSBpZiBhbGlnbnMgZWxzZSAiY2VudGVyIgogICAgICAgIGJkICA9IGJvbGRzW2NpXSBpZiBib2xkcyBlbHNlIEZhbHNlCiAgICAgICAgY2wgID0gY29sb3JzW2NpXSBpZiBjb2xvcnMgZWxzZSAiMDAwMDAwIgogICAgICAgIGZtICA9IGZtdHNbY2ldIGlmIGZtdHMgZWxzZSBOb25lCiAgICAgICAgYy5mb250ID0gRnQoYmQsIDksIGNsKQogICAgICAgIGMuZmlsbCA9IEYoYmcyKQogICAgICAgIGMuYWxpZ25tZW50ID0gQWwoYWwpCiAgICAgICAgYy5ib3JkZXIgPSBCZCgpCiAgICAgICAgaWYgZm06IGMubnVtYmVyX2Zvcm1hdCA9IGZtCiAgICB3cy5yb3dfZGltZW5zaW9uc1tyb3ddLmhlaWdodCA9IGhlaWdodAoKZGVmIHRpdGxlX2Jsb2NrKHdzLCByb3csIGNvbDEsIGNvbDIsIHRpdGxlLCBzdWI9Tm9uZSk6CiAgICByZWYgPSBmIntnZXRfY29sdW1uX2xldHRlcihjb2wxKX17cm93fTp7Z2V0X2NvbHVtbl9sZXR0ZXIoY29sMil9e3Jvd30iCiAgICB3cy5tZXJnZV9jZWxscyhyZWYpCiAgICB3c1tmIntnZXRfY29sdW1uX2xldHRlcihjb2wxKX17cm93fSJdLnZhbHVlID0gdGl0bGUKICAgIHdzW2Yie2dldF9jb2x1bW5fbGV0dGVyKGNvbDEpfXtyb3d9Il0uZm9udCA9IEZ0KFRydWUsIDE0LCBCUkFOQ08pCiAgICB3c1tmIntnZXRfY29sdW1uX2xldHRlcihjb2wxKX17cm93fSJdLmZpbGwgPSBGKEFaVUwpCiAgICB3c1tmIntnZXRfY29sdW1uX2xldHRlcihjb2wxKX17cm93fSJdLmFsaWdubWVudCA9IEFsKCkKICAgIHdzLnJvd19kaW1lbnNpb25zW3Jvd10uaGVpZ2h0ID0gMjgKICAgIGlmIHN1YjoKICAgICAgICByb3cgKz0gMQogICAgICAgIHJlZjIgPSBmIntnZXRfY29sdW1uX2xldHRlcihjb2wxKX17cm93fTp7Z2V0X2NvbHVtbl9sZXR0ZXIoY29sMil9e3Jvd30iCiAgICAgICAgd3MubWVyZ2VfY2VsbHMocmVmMikKICAgICAgICB3c1tmIntnZXRfY29sdW1uX2xldHRlcihjb2wxKX17cm93fSJdLnZhbHVlID0gc3ViCiAgICAgICAgd3NbZiJ7Z2V0X2NvbHVtbl9sZXR0ZXIoY29sMSl9e3Jvd30iXS5mb250ID0gRnQoRmFsc2UsIDksIEJSQU5DTywgVHJ1ZSkKICAgICAgICB3c1tmIntnZXRfY29sdW1uX2xldHRlcihjb2wxKX17cm93fSJdLmZpbGwgPSBGKEFaVUxfTSkKICAgICAgICB3c1tmIntnZXRfY29sdW1uX2xldHRlcihjb2wxKX17cm93fSJdLmFsaWdubWVudCA9IEFsKCkKICAgICAgICB3cy5yb3dfZGltZW5zaW9uc1tyb3ddLmhlaWdodCA9IDE1CiAgICAgICAgcmV0dXJuIHJvdyArIDEKICAgIHJldHVybiByb3cgKyAxCgpkZWYgc2VjX3RpdGxlKHdzLCByb3csIGNvbDEsIGNvbDIsIHRpdGxlKToKICAgIHJlZiA9IGYie2dldF9jb2x1bW5fbGV0dGVyKGNvbDEpfXtyb3d9OntnZXRfY29sdW1uX2xldHRlcihjb2wyKX17cm93fSIKICAgIHdzLm1lcmdlX2NlbGxzKHJlZikKICAgIHdzW2Yie2dldF9jb2x1bW5fbGV0dGVyKGNvbDEpfXtyb3d9Il0udmFsdWUgPSBmIiAge3RpdGxlfSIKICAgIHdzW2Yie2dldF9jb2x1bW5fbGV0dGVyKGNvbDEpfXtyb3d9Il0uZm9udCA9IEZ0KFRydWUsIDEwLCBCUkFOQ08pCiAgICB3c1tmIntnZXRfY29sdW1uX2xldHRlcihjb2wxKX17cm93fSJdLmZpbGwgPSBGKEFaVUxfTSkKICAgIHdzW2Yie2dldF9jb2x1bW5fbGV0dGVyKGNvbDEpfXtyb3d9Il0uYWxpZ25tZW50ID0gQWwoImxlZnQiKQogICAgd3Mucm93X2RpbWVuc2lvbnNbcm93XS5oZWlnaHQgPSAxOAoKZGVmIGtwaV9jYXJkKHdzLCByb3csIGNvbCwgdGl0bGUsIHZhbHVlLCBzdWJfdGV4dCwgYmdfaGRyLCB2YWxfY29sb3I9QlJBTkNPKToKICAgIGNsID0gZ2V0X2NvbHVtbl9sZXR0ZXIoY29sKQogICAgY2wyID0gZ2V0X2NvbHVtbl9sZXR0ZXIoY29sKzEpCiAgICAjIEhlYWRlcgogICAgd3MubWVyZ2VfY2VsbHMoZiJ7Y2x9e3Jvd306e2NsMn17cm93fSIpCiAgICB3c1tmIntjbH17cm93fSJdLnZhbHVlID0gdGl0bGUKICAgIHdzW2Yie2NsfXtyb3d9Il0uZm9udCA9IEZ0KFRydWUsIDgsIEJSQU5DTykKICAgIHdzW2Yie2NsfXtyb3d9Il0uZmlsbCA9IEYoYmdfaGRyKQogICAgd3NbZiJ7Y2x9e3Jvd30iXS5hbGlnbm1lbnQgPSBBbCgpCiAgICB3cy5yb3dfZGltZW5zaW9uc1tyb3ddLmhlaWdodCA9IDE0CiAgICAjIFZhbHVlCiAgICB3cy5tZXJnZV9jZWxscyhmIntjbH17cm93KzF9OntjbDJ9e3JvdysxfSIpCiAgICB3c1tmIntjbH17cm93KzF9Il0udmFsdWUgPSB2YWx1ZQogICAgd3NbZiJ7Y2x9e3JvdysxfSJdLmZvbnQgPSBGdChUcnVlLCAyMiwgdmFsX2NvbG9yIGlmIHZhbF9jb2xvciE9QlJBTkNPIGVsc2UgYmdfaGRyKQogICAgd3NbZiJ7Y2x9e3JvdysxfSJdLmZpbGwgPSBGKEFaVUxfQ0wgaWYgYmdfaGRyPT1BWlVMIGVsc2UgKFZFUkRFX0NMIGlmIGJnX2hkcj09VkVSREUgZWxzZSAoVkVSTV9DTCBpZiBiZ19oZHI9PVZFUk0gZWxzZSBBTUFSX0NMKSkpCiAgICB3c1tmIntjbH17cm93KzF9Il0uYWxpZ25tZW50ID0gQWwoKQogICAgd3Mucm93X2RpbWVuc2lvbnNbcm93KzFdLmhlaWdodCA9IDMyCiAgICAjIFN1YgogICAgd3MubWVyZ2VfY2VsbHMoZiJ7Y2x9e3JvdysyfTp7Y2wyfXtyb3crMn0iKQogICAgd3NbZiJ7Y2x9e3JvdysyfSJdLnZhbHVlID0gc3ViX3RleHQKICAgIHdzW2Yie2NsfXtyb3crMn0iXS5mb250ID0gRnQoRmFsc2UsIDgsIENJTlpBLCBUcnVlKQogICAgd3NbZiJ7Y2x9e3JvdysyfSJdLmZpbGwgPSBGKENJTlpBX0NMKQogICAgd3NbZiJ7Y2x9e3JvdysyfSJdLmFsaWdubWVudCA9IEFsKCkKICAgIHdzLnJvd19kaW1lbnNpb25zW3JvdysyXS5oZWlnaHQgPSAxNAoKIyDilIDilIAgQ8OhbGN1bG9zIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgAphdGl2b3MgICAgPSBbcCBmb3IgcCBpbiBwYXltZW50cyBpZiBnZXRfc3RhdHVzKHApICE9ICJjYW5jZWxhZG8iXQplbnRyZWd1ZXMgPSBbcCBmb3IgcCBpbiBhdGl2b3MgaWYgZ2V0X3N0YXR1cyhwKSA9PSAiZW50cmVndWUiXQphdHJhc2Fkb3MgPSBbcCBmb3IgcCBpbiBhdGl2b3MgaWYgZ2V0X3N0YXR1cyhwKSA9PSAiYXRyYXNhZG8iXQpwZW5kZW50ZXMgPSBbcCBmb3IgcCBpbiBhdGl2b3MgaWYgZ2V0X3N0YXR1cyhwKSA9PSAicGVuZGVudGUiXQpjYW5jZWxhZG9zPSBbcCBmb3IgcCBpbiBwYXltZW50cyBpZiBnZXRfc3RhdHVzKHApID09ICJjYW5jZWxhZG8iXQpub19wcmF6byAgPSBbcCBmb3IgcCBpbiBlbnRyZWd1ZXMgaWYgcC5nZXQoImVudHJlZ3VlIix7fSkgYW5kIHBbImVudHJlZ3VlIl0uZ2V0KCJkZW50cm9EIildCmZvcmFfcHJhem89IFtwIGZvciBwIGluIGVudHJlZ3VlcyBpZiBwLmdldCgiZW50cmVndWUiLHt9KSBhbmQgbm90IHBbImVudHJlZ3VlIl0uZ2V0KCJkZW50cm9EIildCnZvbF90b3RhbCA9IHN1bShmbG9hdChwWyJ2YWxvciJdKSBmb3IgcCBpbiBhdGl2b3MpCnZvbF9lbnQgICA9IHN1bShmbG9hdChwWyJ2YWxvciJdKSBmb3IgcCBpbiBlbnRyZWd1ZXMpCnZvbF9wZW5kICA9IHN1bShmbG9hdChwWyJ2YWxvciJdKSBmb3IgcCBpbiBhdGl2b3MgaWYgZ2V0X3N0YXR1cyhwKSE9ImVudHJlZ3VlIikKcGN0X3ByYXpvID0gKGxlbihub19wcmF6bykvbGVuKGVudHJlZ3VlcykqMTAwKSBpZiBlbnRyZWd1ZXMgZWxzZSAwCm5fZWRpdHMgICA9IHN1bSgxIGZvciBwIGluIHBheW1lbnRzIGZvciBoIGluIHAuZ2V0KCJoaXN0b3JpY28iLFtdKSBpZiBoWyJ0aXBvIl09PSJlZGl0IikKZHRTdHIgICAgID0gdG9kYXkuc3RyZnRpbWUoIiVkLyVtLyVZIikKCiMgQ2FydMO1ZXMgw7puaWNvcwpjYXJ0b2VzID0gc29ydGVkKHNldChwLmdldCgiY2FydGFvIiwiU2VtIGNhcnTDo28iKSBmb3IgcCBpbiBwYXltZW50cykpCgojIE1lbnNhbAptZXNlc19kaWN0ID0ge30KZm9yIHAgaW4gYXRpdm9zOgogICAgZCA9IHBhcnNlX2RhdGUocFsiZGF0YSJdKQogICAgayA9IChkLnllYXIsIGQubW9udGgpCiAgICBsYmwgPSBkLnN0cmZ0aW1lKCIlYi8lWSIpLmNhcGl0YWxpemUoKQogICAgaWYgayBub3QgaW4gbWVzZXNfZGljdDoKICAgICAgICBtZXNlc19kaWN0W2tdID0geyJsYmwiOmxibCwidG90YWwiOjAsImVudCI6MCwiYXRyIjowLCJwZW5kIjowLCJ2YWxvciI6MCwibnAiOjAsImZwIjowLCJ2b2xfZW50IjowfQogICAgbSA9IG1lc2VzX2RpY3Rba107IG1bInRvdGFsIl0rPTE7IG1bInZhbG9yIl0rPWZsb2F0KHBbInZhbG9yIl0pCiAgICBzID0gZ2V0X3N0YXR1cyhwKQogICAgaWYgcz09ImVudHJlZ3VlIjoKICAgICAgICBtWyJlbnQiXSs9MTsgbVsidm9sX2VudCJdKz1mbG9hdChwWyJ2YWxvciJdKQogICAgICAgIGlmIHAuZ2V0KCJlbnRyZWd1ZSIse30pIGFuZCBwWyJlbnRyZWd1ZSJdLmdldCgiZGVudHJvRCIpOiBtWyJucCJdKz0xCiAgICAgICAgZWxzZTogbVsiZnAiXSs9MQogICAgZWxpZiBzPT0iYXRyYXNhZG8iOiBtWyJhdHIiXSs9MQogICAgZWxzZTogbVsicGVuZCJdKz0xCm1lc2VzID0gW21lc2VzX2RpY3Rba10gZm9yIGsgaW4gc29ydGVkKG1lc2VzX2RpY3Qua2V5cygpKV0KCndiID0gV29ya2Jvb2soKQp3Yi5yZW1vdmUod2IuYWN0aXZlKQoKIyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKIyBBQkEgMSDigJQgQ0FQQSBFWEVDVVRJVkEKIyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKY3AgPSB3Yi5jcmVhdGVfc2hlZXQoIvCfk4sgQ2FwYSIpCmNwLnNoZWV0X3ZpZXcuc2hvd0dyaWRMaW5lcyA9IEZhbHNlCgpmb3IgaSBpbiByYW5nZSgxLDgpOiBjcC5jb2x1bW5fZGltZW5zaW9uc1tnZXRfY29sdW1uX2xldHRlcihpKV0ud2lkdGggPSAxOApjcC5jb2x1bW5fZGltZW5zaW9uc1siQSJdLndpZHRoID0gMjsgY3AuY29sdW1uX2RpbWVuc2lvbnNbIkciXS53aWR0aCA9IDIKCiMgRnVuZG8gYXp1bApmb3Igcm93IGluIGNwLml0ZXJfcm93cyhtaW5fcm93PTEsbWF4X3Jvdz00NSxtaW5fY29sPTEsbWF4X2NvbD03KToKICAgIGZvciBjZWxsIGluIHJvdzogY2VsbC5maWxsID0gRihBWlVMKQoKIyBMaW5oYSBkb3VyYWRhIHRvcG8KZm9yIGMgaW4gcmFuZ2UoMiw3KTogY3AuY2VsbChyb3c9Mixjb2x1bW49YykuZmlsbCA9IEYoT1VSTykKY3Aucm93X2RpbWVuc2lvbnNbMl0uaGVpZ2h0ID0gNQoKIyBUw610dWxvCmNwLm1lcmdlX2NlbGxzKCJCNDpGNSIpCmNwWyJCNCJdLnZhbHVlID0gIlBSRVNUQcOHw4NPIERFIENPTlRBUyIKY3BbIkI0Il0uZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLGJvbGQ9VHJ1ZSxzaXplPTI4LGNvbG9yPUJSQU5DTykKY3BbIkI0Il0uYWxpZ25tZW50ID0gQWwoKQpjcFsiQjQiXS5maWxsID0gRihBWlVMKQpjcC5yb3dfZGltZW5zaW9uc1s0XS5oZWlnaHQgPSAzMDsgY3Aucm93X2RpbWVuc2lvbnNbNV0uaGVpZ2h0ID0gMjQKCmNwLm1lcmdlX2NlbGxzKCJCNjpGNiIpCmNwWyJCNiJdLnZhbHVlID0gIkNBUlTDg08gQ09SUE9SQVRJVk8g4oCUIFJFTEFUw5NSSU8gRVhFQ1VUSVZPIgpjcFsiQjYiXS5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsYm9sZD1GYWxzZSxzaXplPTEzLGNvbG9yPU9VUk8pCmNwWyJCNiJdLmFsaWdubWVudCA9IEFsKCk7IGNwWyJCNiJdLmZpbGwgPSBGKEFaVUwpCmNwLnJvd19kaW1lbnNpb25zWzZdLmhlaWdodCA9IDIwCgojIExpbmhhIGRvdXJhZGEKZm9yIGMgaW4gcmFuZ2UoMiw3KTogY3AuY2VsbChyb3c9Nyxjb2x1bW49YykuZmlsbCA9IEYoT1VSTykKY3Aucm93X2RpbWVuc2lvbnNbN10uaGVpZ2h0ID0gNAoKY3AubWVyZ2VfY2VsbHMoIkI4OkY4IikKY3BbIkI4Il0udmFsdWUgPSBmIlBlcsOtb2RvOiDDmmx0aW1vcyAzIE1lc2VzICDCtyAgRW1pdGlkbyBlbToge2R0U3RyfSIKY3BbIkI4Il0uZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLHNpemU9MTAsY29sb3I9IkEwQjREMCIsaXRhbGljPVRydWUpCmNwWyJCOCJdLmFsaWdubWVudCA9IEFsKCk7IGNwWyJCOCJdLmZpbGwgPSBGKEFaVUwpCmNwLnJvd19kaW1lbnNpb25zWzhdLmhlaWdodCA9IDE4OyBjcC5yb3dfZGltZW5zaW9uc1s5XS5oZWlnaHQgPSAxMgoKIyBLUElzCmtwaV9jYXJkKGNwLDEwLDIsIlRPVEFMIEFUSVZPIixzdHIobGVuKGF0aXZvcykpLGYie2xlbihjYW5jZWxhZG9zKX0gY2FuY2VsYWRvcyIsQVpVTCkKa3BpX2NhcmQoY3AsMTAsNCwiRU5UUkVHVUVTIixzdHIobGVuKGVudHJlZ3VlcykpLGZtdF9icmwodm9sX2VudCksVkVSREUpCmtwaV9jYXJkKGNwLDEwLDYsIkNPTkZPUk1JREFERSIsZiJ7cGN0X3ByYXpvOi4wZn0lIixmIntsZW4obm9fcHJhem8pfSBubyBwcmF6byIsVkVSREUgaWYgcGN0X3ByYXpvPj04MCBlbHNlIFZFUk0pCmNwLnJvd19kaW1lbnNpb25zWzEzXS5oZWlnaHQgPSAxMgprcGlfY2FyZChjcCwxNCwyLCJWT0xVTUUgVE9UQUwiLGZtdF9icmwodm9sX3RvdGFsKSwiUGFnYW1lbnRvcyBhdGl2b3MiLEFaVUwpCmtwaV9jYXJkKGNwLDE0LDQsIkFUUkFTQURPUyIsc3RyKGxlbihhdHJhc2Fkb3MpKSxmIntsZW4ocGVuZGVudGVzKX0gcGVuZGVudGVzIixWRVJNIGlmIGF0cmFzYWRvcyBlbHNlIENJTlpBKQprcGlfY2FyZChjcCwxNCw2LCJBIFBSRVNUQVIiLGZtdF9icmwodm9sX3BlbmQpLCJQZW5kZW50ZSBkZSBlbnRyZWdhIixWRVJNIGlmIHZvbF9wZW5kPjAgZWxzZSBWRVJERSkKCmNwLnJvd19kaW1lbnNpb25zWzE3XS5oZWlnaHQgPSAxMgoKIyBMaW5oYSBkb3VyYWRhCmZvciBjIGluIHJhbmdlKDIsNyk6IGNwLmNlbGwocm93PTE4LGNvbHVtbj1jKS5maWxsID0gRihPVVJPKQpjcC5yb3dfZGltZW5zaW9uc1sxOF0uaGVpZ2h0ID0gNAoKIyBDYXJ0w7VlcwpjcC5tZXJnZV9jZWxscygiQjE5OkYxOSIpCmNwWyJCMTkiXS52YWx1ZSA9IGYiQ0FSVMOVRVMgQ09SUE9SQVRJVk9TICDCtyAge2xlbihjYXJ0b2VzKX0gY2FydMOjbyjDtWVzKSBtb25pdG9yYWRvKHMpIgpjcFsiQjE5Il0uZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLGJvbGQ9VHJ1ZSxzaXplPTEwLGNvbG9yPU9VUk8pCmNwWyJCMTkiXS5hbGlnbm1lbnQgPSBBbCgpOyBjcFsiQjE5Il0uZmlsbCA9IEYoQVpVTCkKY3Aucm93X2RpbWVuc2lvbnNbMTldLmhlaWdodCA9IDE4Cgpmb3IgaSwgY2FydCBpbiBlbnVtZXJhdGUoY2FydG9lcyk6CiAgICBwZ3RzX2NhcnQgPSBbcCBmb3IgcCBpbiBhdGl2b3MgaWYgcC5nZXQoImNhcnRhbyIpPT1jYXJ0XQogICAgZW50X2NhcnQgPSBbcCBmb3IgcCBpbiBwZ3RzX2NhcnQgaWYgZ2V0X3N0YXR1cyhwKT09ImVudHJlZ3VlIl0KICAgIHZvbF9jYXJ0ID0gc3VtKGZsb2F0KHBbInZhbG9yIl0pIGZvciBwIGluIHBndHNfY2FydCkKICAgIHBjdF9jID0gZiJ7bGVuKGVudF9jYXJ0KS9tYXgobGVuKHBndHNfY2FydCksMSkqMTAwOi4wZn0lIgogICAgcm93X2MgPSAyMCArIGkqMgogICAgY3AubWVyZ2VfY2VsbHMoZiJCe3Jvd19jfTpDe3Jvd19jfSIpCiAgICBjcFtmIkJ7cm93X2N9Il0udmFsdWUgPSBjYXJ0CiAgICBjcFtmIkJ7cm93X2N9Il0uZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLGJvbGQ9VHJ1ZSxzaXplPTEwLGNvbG9yPUJSQU5DTykKICAgIGNwW2YiQntyb3dfY30iXS5hbGlnbm1lbnQgPSBBbCgibGVmdCIpOyBjcFtmIkJ7cm93X2N9Il0uZmlsbCA9IEYoQVpVTCkKICAgIGNwW2YiRHtyb3dfY30iXS52YWx1ZSA9IGYie2xlbihwZ3RzX2NhcnQpfSBwZ3RvcyIKICAgIGNwW2YiRHtyb3dfY30iXS5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsc2l6ZT05LGNvbG9yPSJBMEI0RDAiKQogICAgY3BbZiJEe3Jvd19jfSJdLmFsaWdubWVudCA9IEFsKCk7IGNwW2YiRHtyb3dfY30iXS5maWxsID0gRihBWlVMKQogICAgY3BbZiJFe3Jvd19jfSJdLnZhbHVlID0gZm10X2JybCh2b2xfY2FydCkKICAgIGNwW2YiRXtyb3dfY30iXS5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsYm9sZD1UcnVlLHNpemU9OSxjb2xvcj1PVVJPKQogICAgY3BbZiJFe3Jvd19jfSJdLmFsaWdubWVudCA9IEFsKCk7IGNwW2YiRXtyb3dfY30iXS5maWxsID0gRihBWlVMKQogICAgY3BbZiJGe3Jvd19jfSJdLnZhbHVlID0gZiJDb25mb3JtaWRhZGU6IHtwY3RfY30iCiAgICBjcFtmIkZ7cm93X2N9Il0uZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLHNpemU9OSxjb2xvcj0iQTBCNEQwIikKICAgIGNwW2YiRntyb3dfY30iXS5hbGlnbm1lbnQgPSBBbCgpOyBjcFtmIkZ7cm93X2N9Il0uZmlsbCA9IEYoQVpVTCkKICAgIGNwLnJvd19kaW1lbnNpb25zW3Jvd19jXS5oZWlnaHQgPSAxOAoKIyDDjW5kaWNlCmlkeF9yb3cgPSAyMCArIGxlbihjYXJ0b2VzKSoyICsgMgpmb3IgYyBpbiByYW5nZSgyLDcpOiBjcC5jZWxsKHJvdz1pZHhfcm93LTEsY29sdW1uPWMpLmZpbGwgPSBGKE9VUk8pCmNwLnJvd19kaW1lbnNpb25zW2lkeF9yb3ctMV0uaGVpZ2h0ID0gNApjcC5tZXJnZV9jZWxscyhmIkJ7aWR4X3Jvd306RntpZHhfcm93fSIpCmFiYXNfdHh0ID0gIkRhc2hib2FyZCAgwrcgICIgKyAiICDCtyAgIi5qb2luKGNhcnRvZXMpICsgIiAgwrcgIFJlc3VtbyBNZW5zYWwgIMK3ICBQZW5kw6puY2lhcyAgwrcgIEF1ZGl0b3JpYSIKY3BbZiJCe2lkeF9yb3d9Il0udmFsdWUgPSBmIkNPTlRFw5pETzoge2FiYXNfdHh0fSIKY3BbZiJCe2lkeF9yb3d9Il0uZm9udCA9IEZvbnQobmFtZT0iQXJpYWwiLHNpemU9OSxjb2xvcj1PVVJPKQpjcFtmIkJ7aWR4X3Jvd30iXS5hbGlnbm1lbnQgPSBBbCgpOyBjcFtmIkJ7aWR4X3Jvd30iXS5maWxsID0gRihBWlVMKQpjcC5yb3dfZGltZW5zaW9uc1tpZHhfcm93XS5oZWlnaHQgPSAxNgoKIyBSb2RhcMOpCmZvciBjIGluIHJhbmdlKDIsNyk6IGNwLmNlbGwocm93PWlkeF9yb3crMixjb2x1bW49YykuZmlsbCA9IEYoT1VSTykKY3Aucm93X2RpbWVuc2lvbnNbaWR4X3JvdysyXS5oZWlnaHQgPSA0CmNwLm1lcmdlX2NlbGxzKGYiQntpZHhfcm93KzN9OkZ7aWR4X3Jvdys1fSIpCmNwW2YiQntpZHhfcm93KzN9Il0udmFsdWUgPSBmIkRvY3VtZW50byBkZSB1c28gcmVzdHJpdG8g4oCUIERpcmV0b3JpYVxuU2lzdGVtYSBkZSBDb250cm9sZSBkZSBQcmVzdGHDp8OjbyBkZSBDb250YXMg4oCUIENhcnTDo28gQ29ycG9yYXRpdm9cbkdlcmFkbyBhdXRvbWF0aWNhbWVudGUgZW0ge2R0U3RyfSIKY3BbZiJCe2lkeF9yb3crM30iXS5mb250ID0gRm9udChuYW1lPSJBcmlhbCIsc2l6ZT04LGNvbG9yPSI3MDgwOTAiLGl0YWxpYz1UcnVlKQpjcFtmIkJ7aWR4X3JvdyszfSJdLmFsaWdubWVudCA9IEFsKHdyYXA9VHJ1ZSk7IGNwW2YiQntpZHhfcm93KzN9Il0uZmlsbCA9IEYoQVpVTCkKZm9yIHIgaW4gcmFuZ2UoaWR4X3JvdyszLCBpZHhfcm93KzYpOiBjcC5yb3dfZGltZW5zaW9uc1tyXS5oZWlnaHQgPSAxNAoKIyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKIyBBQkEgMiDigJQgREFTSEJPQVJEIEdFUkFMCiMg4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQCmRzID0gd2IuY3JlYXRlX3NoZWV0KCLwn5OKIERhc2hib2FyZCIpCmRzLnNoZWV0X3ZpZXcuc2hvd0dyaWRMaW5lcyA9IEZhbHNlCmNvbF93c19kID0geyJBIjoyLCJCIjoxOCwiQyI6MTQsIkQiOjE0LCJFIjoxNCwiRiI6MTQsIkciOjE0LCJIIjoyfQpmb3IgY29sLCB3IGluIGNvbF93c19kLml0ZW1zKCk6IGRzLmNvbHVtbl9kaW1lbnNpb25zW2NvbF0ud2lkdGggPSB3CgpyID0gdGl0bGVfYmxvY2soZHMsIDEsIDIsIDcsICJEQVNIQk9BUkQgRVhFQ1VUSVZPIOKAlCBQUkVTVEHDh8ODTyBERSBDT05UQVMiLAogICAgICAgICAgICAgICAgZiJQZXLDrW9kbzogw5psdGltb3MgMyBNZXNlcyAgwrcgIEVtaXRpZG8gZW06IHtkdFN0cn0gIMK3ICBVc28gcmVzdHJpdG8g4oCUIERpcmV0b3JpYSIpCmRzLnJvd19kaW1lbnNpb25zW3JdLmhlaWdodCA9IDg7IHIgKz0gMQoKIyBLUElzCnNlY190aXRsZShkcywgciwgMiwgNywgIklORElDQURPUkVTLUNIQVZFIERFIERFU0VNUEVOSE8iKTsgciArPSAxCmtwaV9jYXJkKGRzLCByLCAyLCAiVE9UQUwgQVRJVk8iLCBzdHIobGVuKGF0aXZvcykpLCBmIntsZW4oY2FuY2VsYWRvcyl9IGNhbmNlbGFkb3MiLCBBWlVMKQprcGlfY2FyZChkcywgciwgNCwgIkVOVFJFR1VFUyIsIHN0cihsZW4oZW50cmVndWVzKSksIGZtdF9icmwodm9sX2VudCksIFZFUkRFKQprcGlfY2FyZChkcywgciwgNiwgIkFUUkFTQURPUyIsIHN0cihsZW4oYXRyYXNhZG9zKSksIGYie2xlbihwZW5kZW50ZXMpfSBwZW5kZW50ZXMiLCBWRVJNIGlmIGF0cmFzYWRvcyBlbHNlIENJTlpBKQpyICs9IDQKa3BpX2NhcmQoZHMsIHIsIDIsICJWT0xVTUUgVE9UQUwgKFIkKSIsIGZtdF9icmwodm9sX3RvdGFsKSwgIlBhZ2FtZW50b3MgYXRpdm9zIiwgQVpVTCkKa3BpX2NhcmQoZHMsIHIsIDQsICJDT05GT1JNSURBREUiLCBmIntwY3RfcHJhem86LjBmfSUiLCBmIntsZW4obm9fcHJhem8pfSBubyBwcmF6byDCtyB7bGVuKGZvcmFfcHJhem8pfSBmb3JhIiwgVkVSREUgaWYgcGN0X3ByYXpvPj04MCBlbHNlIFZFUk0pCmtwaV9jYXJkKGRzLCByLCA2LCAiQSBQUkVTVEFSIChSJCkiLCBmbXRfYnJsKHZvbF9wZW5kKSwgIlBlbmRlbnRlIGRlIGVudHJlZ2EiLCBWRVJNIGlmIHZvbF9wZW5kPjAgZWxzZSBWRVJERSkKciArPSA0OyBkcy5yb3dfZGltZW5zaW9uc1tyXS5oZWlnaHQgPSAxMDsgciArPSAxCgojIFRhYmVsYSBzdGF0dXMKc2VjX3RpdGxlKGRzLCByLCAyLCA3LCAiQ09NUE9TScOHw4NPIFBPUiBTVEFUVVMiKTsgciArPSAxCmhkcihkcywgciwgMiwgWyJTVEFUVVMiLCJRVEQiLCJWT0xVTUUgKFIkKSIsIiUgUVRERSIsIiUgVk9MVU1FIiwiU0lUVUHDh8ODTyJdKTsgciArPSAxCnN0YXR1c19yb3dzID0gWwogICAgKCLinIUgIEVudHJlZ3VlcyBubyBwcmF6byIsIGxlbihub19wcmF6byksIHN1bShmbG9hdChwWyJ2YWxvciJdKSBmb3IgcCBpbiBub19wcmF6byksIFZFUkRFX0NMLCBWRVJERSwgIuKchSBDb25mb3JtZSIpLAogICAgKCLimqDvuI8gIEVudHJlZ3VlcyBmb3JhIHByYXpvIiwgbGVuKGZvcmFfcHJhem8pLCBzdW0oZmxvYXQocFsidmFsb3IiXSkgZm9yIHAgaW4gZm9yYV9wcmF6byksIEFNQVJfQ0wsIEFNQVIsICLimqDvuI8gQXRlbsOnw6NvIiksCiAgICAoIvCflZAgIFBlbmRlbnRlcyIsIGxlbihwZW5kZW50ZXMpLCBzdW0oZmxvYXQocFsidmFsb3IiXSkgZm9yIHAgaW4gcGVuZGVudGVzKSwgQVpVTF9DTCwgQVpVTF9NLCAi8J+VkCBFbSBhbmRhbWVudG8iKSwKICAgICgi8J+UtCAgQXRyYXNhZG9zICgrNDhoKSIsIGxlbihhdHJhc2Fkb3MpLCBzdW0oZmxvYXQocFsidmFsb3IiXSkgZm9yIHAgaW4gYXRyYXNhZG9zKSwgVkVSTV9DTCwgVkVSTSwgIvCflLQgQ3LDrXRpY28iKSwKICAgICgi4p2MICBDYW5jZWxhZG9zIiwgbGVuKGNhbmNlbGFkb3MpLCAwLCBDSU5aQV9DTCwgQ0lOWkEsICLigJQiKSwKXQpmb3IgcmksIChsYmwsIHF0ZCwgdm9sLCBiZywgY29yLCBzaXQpIGluIGVudW1lcmF0ZShzdGF0dXNfcm93cyk6CiAgICBhbHQgPSBDSU5aQV9BTFQgaWYgcmklMj09MSBlbHNlIEJSQU5DTwogICAgcGN0X3EgPSBmIntxdGQvbWF4KGxlbihwYXltZW50cyksMSkqMTAwOi4xZn0lIgogICAgcGN0X3YgPSBmInt2b2wvbWF4KHZvbF90b3RhbCwwLjAxKSoxMDA6LjFmfSUiCiAgICBkYXRhX3JvdyhkcywgciwgMiwgW2xibCwgcXRkLCBmbXRfYnJsKHZvbCksIHBjdF9xLCBwY3Rfdiwgc2l0XSwKICAgICAgICAgICAgIGJnPVtiZyxhbHQsYWx0LGFsdCxhbHQsYWx0XSwgYm9sZHM9W1RydWUsRmFsc2UsRmFsc2UsRmFsc2UsRmFsc2UsRmFsc2VdLAogICAgICAgICAgICAgY29sb3JzPVtjb3IsIjAwMDAwMCIsIjAwMDAwMCIsIjAwMDAwMCIsIjAwMDAwMCIsIjAwMDAwMCJdLAogICAgICAgICAgICAgYWxpZ25zPVsibGVmdCIsImNlbnRlciIsImNlbnRlciIsImNlbnRlciIsImNlbnRlciIsImNlbnRlciJdKQogICAgciArPSAxCmRhdGFfcm93KGRzLCByLCAyLCBbIlRPVEFMIiwgbGVuKGF0aXZvcyksIGZtdF9icmwodm9sX3RvdGFsKSwiMTAwJSIsIjEwMCUiLCIiXSwKICAgICAgICAgYmc9W0FaVUxdKjYsIGJvbGRzPVtUcnVlXSo2LCBjb2xvcnM9W0JSQU5DT10qNik7IHIgKz0gMQpkcy5yb3dfZGltZW5zaW9uc1tyXS5oZWlnaHQgPSAxMDsgciArPSAxCgojIFRhYmVsYSBtZW5zYWwKc2VjX3RpdGxlKGRzLCByLCAyLCA3LCAiREVTRU1QRU5ITyBNRU5TQUwiKTsgciArPSAxCmhkcihkcywgciwgMiwgWyJNw4pTIiwiVE9UQUwiLCJFTlRSRUdVRVMiLCJOTyBQUkFaTyIsIkZPUkEgUFJBWk8iLCJWT0xVTUUgKFIkKSJdKTsgciArPSAxCmZvciBtaSwgbSBpbiBlbnVtZXJhdGUobWVzZXMpOgogICAgYWx0ID0gQ0lOWkFfQUxUIGlmIG1pJTI9PTEgZWxzZSBCUkFOQ08KICAgIGRhdGFfcm93KGRzLCByLCAyLCBbbVsibGJsIl0sbVsidG90YWwiXSxtWyJlbnQiXSxtWyJucCJdLG1bImZwIl0sZm10X2JybChtWyJ2YWxvciJdKV0sCiAgICAgICAgICAgICBiZz1bYWx0XSo2LCBib2xkcz1bRmFsc2UsRmFsc2UsRmFsc2UsRmFsc2UsbVsiZnAiXT4wLFRydWVdLAogICAgICAgICAgICAgY29sb3JzPVsiMDAwMDAwIiwiMDAwMDAwIixWRVJERSxWRVJERSxWRVJNIGlmIG1bImZwIl0+MCBlbHNlIENJTlpBLCIwMDAwMDAiXSwKICAgICAgICAgICAgIGFsaWducz1bImxlZnQiLCJjZW50ZXIiLCJjZW50ZXIiLCJjZW50ZXIiLCJjZW50ZXIiLCJyaWdodCJdKQogICAgciArPSAxCmRhdGFfcm93KGRzLCByLCAyLCBbIlRPVEFMIixsZW4oYXRpdm9zKSxsZW4oZW50cmVndWVzKSxsZW4obm9fcHJhem8pLGxlbihmb3JhX3ByYXpvKSxmbXRfYnJsKHZvbF90b3RhbCldLAogICAgICAgICBiZz1bQVpVTF0qNiwgYm9sZHM9W1RydWVdKjYsIGNvbG9ycz1bQlJBTkNPXSo2LAogICAgICAgICBhbGlnbnM9WyJjZW50ZXIiLCJjZW50ZXIiLCJjZW50ZXIiLCJjZW50ZXIiLCJjZW50ZXIiLCJyaWdodCJdKTsgciArPSAxCgojIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAojIEFCQSBQT1IgQ0FSVMODTwojIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkApmb3IgY2FydCBpbiBjYXJ0b2VzOgogICAgcGd0cyA9IFtwIGZvciBwIGluIHBheW1lbnRzIGlmIHAuZ2V0KCJjYXJ0YW8iLCIiKSA9PSBjYXJ0XQogICAgZW50X2MgPSBbcCBmb3IgcCBpbiBwZ3RzIGlmIGdldF9zdGF0dXMocCk9PSJlbnRyZWd1ZSJdCiAgICBhdHJfYyA9IFtwIGZvciBwIGluIHBndHMgaWYgZ2V0X3N0YXR1cyhwKT09ImF0cmFzYWRvIl0KICAgIHBlbmRfYz0gW3AgZm9yIHAgaW4gcGd0cyBpZiBnZXRfc3RhdHVzKHApPT0icGVuZGVudGUiXQogICAgY2FuX2MgPSBbcCBmb3IgcCBpbiBwZ3RzIGlmIGdldF9zdGF0dXMocCk9PSJjYW5jZWxhZG8iXQogICAgbnBfYyAgPSBbcCBmb3IgcCBpbiBlbnRfYyBpZiBwLmdldCgiZW50cmVndWUiLHt9KSBhbmQgcFsiZW50cmVndWUiXS5nZXQoImRlbnRyb0QiKV0KICAgIGZwX2MgID0gW3AgZm9yIHAgaW4gZW50X2MgaWYgcC5nZXQoImVudHJlZ3VlIix7fSkgYW5kIG5vdCBwWyJlbnRyZWd1ZSJdLmdldCgiZGVudHJvRCIpXQogICAgdm9sX2MgPSBzdW0oZmxvYXQocFsidmFsb3IiXSkgZm9yIHAgaW4gW3AgZm9yIHAgaW4gcGd0cyBpZiBnZXRfc3RhdHVzKHApIT0iY2FuY2VsYWRvIl0pCiAgICB2b2xfZWM9IHN1bShmbG9hdChwWyJ2YWxvciJdKSBmb3IgcCBpbiBlbnRfYykKICAgIHBjdF9jID0gKGxlbihucF9jKS9sZW4oZW50X2MpKjEwMCkgaWYgZW50X2MgZWxzZSAwCgogICAgIyBOb21lIGRhIGFiYSDigJQgbcOheCAzMSBjaGFycwogICAgYWJhX25vbWUgPSBmIvCfkrMge2NhcnR9Ils6MzFdCiAgICB3cyA9IHdiLmNyZWF0ZV9zaGVldChhYmFfbm9tZSkKICAgIHdzLnNoZWV0X3ZpZXcuc2hvd0dyaWRMaW5lcyA9IEZhbHNlCgogICAgY29sX3dzX3AgPSBbMiw1LDE4LDE2LDE0LDEyLDEyLDEzLDEzLDE2LDE2LDEzLDE2XQogICAgZm9yIGksIHcgaW4gZW51bWVyYXRlKGNvbF93c19wLCAxKTogd3MuY29sdW1uX2RpbWVuc2lvbnNbZ2V0X2NvbHVtbl9sZXR0ZXIoaSldLndpZHRoID0gdwoKICAgIHIyID0gdGl0bGVfYmxvY2sod3MsIDEsIDIsIDEzLAogICAgICAgICAgICAgICAgICAgICBmIntjYXJ0fSDigJQgUEFHQU1FTlRPUyBERVRBTEhBRE9TIiwKICAgICAgICAgICAgICAgICAgICAgZiJUb3RhbDoge2xlbihwZ3RzKX0gcmVnaXN0cm9zICDCtyAgVm9sdW1lOiB7Zm10X2JybCh2b2xfYyl9ICDCtyAgR2VyYWRvIGVtOiB7ZHRTdHJ9IikKCiAgICB3cy5yb3dfZGltZW5zaW9uc1tyMl0uaGVpZ2h0ID0gODsgcjIgKz0gMQoKICAgICMgS1BJcyBkbyBjYXJ0w6NvCiAgICBzZWNfdGl0bGUod3MsIHIyLCAyLCAxMywgIlJFU1VNTyBETyBDQVJUw4NPIik7IHIyICs9IDEKICAgIGtwaV9jYXJkKHdzLCByMiwgMiwgIlRPVEFMIiwgc3RyKGxlbihwZ3RzKSksIGYie2xlbihjYW5fYyl9IGNhbmNlbGFkb3MiLCBBWlVMKQogICAga3BpX2NhcmQod3MsIHIyLCA0LCAiRU5UUkVHVUVTIiwgc3RyKGxlbihlbnRfYykpLCBmbXRfYnJsKHZvbF9lYyksIFZFUkRFKQogICAga3BpX2NhcmQod3MsIHIyLCA2LCAiQVRSQVNBRE9TIiwgc3RyKGxlbihhdHJfYykpLCBmIntsZW4ocGVuZF9jKX0gcGVuZGVudGVzIiwgVkVSTSBpZiBhdHJfYyBlbHNlIENJTlpBKQogICAga3BpX2NhcmQod3MsIHIyLCA4LCAiQ09ORk9STUlEQURFIiwgZiJ7cGN0X2M6LjBmfSUiLCBmIntsZW4obnBfYyl9IG5vIHByYXpvIiwgVkVSREUgaWYgcGN0X2M+PTgwIGVsc2UgVkVSTSkKICAgIGtwaV9jYXJkKHdzLCByMiwgMTAsICJWT0xVTUUgVE9UQUwiLCBmbXRfYnJsKHZvbF9jKSwgIlBhZ2FtZW50b3MgYXRpdm9zIiwgQVpVTCkKICAgIGtwaV9jYXJkKHdzLCByMiwgMTIsICJBIFBSRVNUQVIiLCBmbXRfYnJsKHN1bShmbG9hdChwWyJ2YWxvciJdKSBmb3IgcCBpbiBhdHJfYytwZW5kX2MpKSwgIlBlbmRlbnRlIiwgVkVSTSBpZiBhdHJfYyBlbHNlIEFNQVIpCiAgICByMiArPSA0OyB3cy5yb3dfZGltZW5zaW9uc1tyMl0uaGVpZ2h0ID0gMTA7IHIyICs9IDEKCiAgICAjIFRhYmVsYQogICAgc2VjX3RpdGxlKHdzLCByMiwgMiwgMTMsICJSRUdJU1RST1MgREVUQUxIQURPUyIpOyByMiArPSAxCiAgICBoZHJzX3AgPSBbIiIsIklEIiwiRGVzY3Jpw6fDo28iLCJGb3JuZWNlZG9yIiwiRGF0YSBQZ3RvIiwiUHJhem8gNDhoIiwiU3RhdHVzIiwiVmFsb3IgKFIkKSIsIlNldG9yIFJlY2ViZWRvciIsIlF1ZW0gUmVjZWJldSIsIkRhdGEgRW50cmVnYSIsIkRlbnRybyBkbyBQcmF6byJdCiAgICBmb3IgY2ksIGggaW4gZW51bWVyYXRlKGhkcnNfcCwgMSk6CiAgICAgICAgaWYgY2kgPT0gMTogY29udGludWUKICAgICAgICBjID0gd3MuY2VsbChyb3c9cjIsIGNvbHVtbj1jaSwgdmFsdWU9aCkKICAgICAgICBjLmZvbnQgPSBGdChUcnVlLCA5LCBCUkFOQ08pOyBjLmZpbGwgPSBGKEFaVUwpCiAgICAgICAgYy5hbGlnbm1lbnQgPSBBbCh3cmFwPVRydWUpOyBjLmJvcmRlciA9IEJkKCkKICAgIHdzLnJvd19kaW1lbnNpb25zW3IyXS5oZWlnaHQgPSAxOAogICAgd3MuZnJlZXplX3BhbmVzID0gZiJCe3IyKzF9IgogICAgcjIgKz0gMQoKICAgIHNvcnRlZF9wID0gc29ydGVkKHBndHMsIGtleT1sYW1iZGEgcDogcFsiZGF0YSJdLCByZXZlcnNlPVRydWUpCiAgICBmb3IgcmksIHAgaW4gZW51bWVyYXRlKHNvcnRlZF9wKToKICAgICAgICBzID0gZ2V0X3N0YXR1cyhwKTsgZSA9IHAuZ2V0KCJlbnRyZWd1ZSIpIG9yIHt9CiAgICAgICAgYmdfcm93ID0gQ0lOWkFfQUxUIGlmIHJpJTI9PTEgZWxzZSBCUkFOQ08KICAgICAgICBzYmcgPSBTQkcuZ2V0KHMsIEJSQU5DTyk7IHNjbCA9IFNDTC5nZXQocywgIjAwMDAwMCIpCgogICAgICAgIHdzLmNlbGwocm93PXIyLCBjb2x1bW49MSkuZmlsbCA9IEYoc2JnKQogICAgICAgIHZhbHMgPSBbCiAgICAgICAgICAgIChwWyJpZCJdLCBiZ19yb3csIEZhbHNlLCAiMDAwMDAwIiwgImNlbnRlciIsIE5vbmUpLAogICAgICAgICAgICAocC5nZXQoImRlc2MiLCIiKSwgYmdfcm93LCBGYWxzZSwgIjAwMDAwMCIsICJsZWZ0IiwgTm9uZSksCiAgICAgICAgICAgIChwLmdldCgiZm9ybiIsIiIpLCBiZ19yb3csIFRydWUsICIwMDAwMDAiLCAibGVmdCIsIE5vbmUpLAogICAgICAgICAgICAoZm10X2QocFsiZGF0YSJdKSwgYmdfcm93LCBGYWxzZSwgIjAwMDAwMCIsICJjZW50ZXIiLCBOb25lKSwKICAgICAgICAgICAgKHByYXpvNDgocFsiZGF0YSJdKS5zdHJmdGltZSgiJWQvJW0vJVkiKSwgYmdfcm93LCBGYWxzZSwgIjAwMDAwMCIsICJjZW50ZXIiLCBOb25lKSwKICAgICAgICAgICAgKFNMQi5nZXQocyxzKSwgc2JnLCBUcnVlLCBzY2wsICJjZW50ZXIiLCBOb25lKSwKICAgICAgICAgICAgKGZsb2F0KHAuZ2V0KCJ2YWxvciIsMCkpLCBiZ19yb3csIFRydWUsICIwMDAwMDAiLCAicmlnaHQiLCAiIywjIzAuMDAiKSwKICAgICAgICAgICAgKGUuZ2V0KCJzZXRvciIsIiIpLCBiZ19yb3csIEZhbHNlLCAiMDAwMDAwIiwgImNlbnRlciIsIE5vbmUpLAogICAgICAgICAgICAoZS5nZXQoInBlc3NvYSIsIiIpLCBiZ19yb3csIEZhbHNlLCAiMDAwMDAwIiwgImNlbnRlciIsIE5vbmUpLAogICAgICAgICAgICAoZm10X2QoZVsiZGF0YUVudHJlZ2EiXSkgaWYgZS5nZXQoImRhdGFFbnRyZWdhIikgZWxzZSAiIiwgYmdfcm93LCBGYWxzZSwgIjAwMDAwMCIsICJjZW50ZXIiLCBOb25lKSwKICAgICAgICAgICAgKCgi4pyFIFNpbSIgaWYgZS5nZXQoImRlbnRyb0QiKSBlbHNlICLimqDvuI8gTsOjbyIpIGlmIGUuZ2V0KCJkYXRhRW50cmVnYSIpIGVsc2UgIiIsCiAgICAgICAgICAgICBWRVJERV9DTCBpZiBlLmdldCgiZGVudHJvRCIpIGVsc2UgKFZFUk1fQ0wgaWYgZS5nZXQoImRhdGFFbnRyZWdhIikgZWxzZSBiZ19yb3cpLAogICAgICAgICAgICAgVHJ1ZSwgVkVSREUgaWYgZS5nZXQoImRlbnRyb0QiKSBlbHNlIChWRVJNIGlmIGUuZ2V0KCJkYXRhRW50cmVnYSIpIGVsc2UgIjAwMDAwMCIpLCAiY2VudGVyIiwgTm9uZSksCiAgICAgICAgXQogICAgICAgIGZvciBjaSwgKHYsIGJnMiwgYmQsIGNsLCBhbCwgZm0pIGluIGVudW1lcmF0ZSh2YWxzLCAyKToKICAgICAgICAgICAgYyA9IHdzLmNlbGwocm93PXIyLCBjb2x1bW49Y2ksIHZhbHVlPXYpCiAgICAgICAgICAgIGMuZm9udCA9IEZ0KGJkLCA5LCBjbCk7IGMuZmlsbCA9IEYoYmcyKQogICAgICAgICAgICBjLmFsaWdubWVudCA9IEFsKGFsKTsgYy5ib3JkZXIgPSBCZCgpCiAgICAgICAgICAgIGlmIGZtOiBjLm51bWJlcl9mb3JtYXQgPSBmbQogICAgICAgIHdzLnJvd19kaW1lbnNpb25zW3IyXS5oZWlnaHQgPSAxNQogICAgICAgIHIyICs9IDEKCiAgICAjIFRvdGFsIHJvdwogICAgd3MubWVyZ2VfY2VsbHMoZiJCe3IyfTpHe3IyfSIpCiAgICB3c1tmIkJ7cjJ9Il0udmFsdWUgPSBmIlRPVEFMIOKAlCB7bGVuKHBndHMpfSByZWdpc3Ryb3MiCiAgICB3c1tmIkJ7cjJ9Il0uZm9udCA9IEZ0KFRydWUsIDksIEJSQU5DTyk7IHdzW2YiQntyMn0iXS5maWxsID0gRihBWlVMKQogICAgd3NbZiJCe3IyfSJdLmFsaWdubWVudCA9IEFsKCJsZWZ0Iik7IHdzW2YiQntyMn0iXS5ib3JkZXIgPSBCZCgpCiAgICB3cy5jZWxsKHJvdz1yMiwgY29sdW1uPTgpLnZhbHVlID0gdm9sX2MKICAgIHdzLmNlbGwocm93PXIyLCBjb2x1bW49OCkuZm9udCA9IEZ0KFRydWUsIDksIEJSQU5DTykKICAgIHdzLmNlbGwocm93PXIyLCBjb2x1bW49OCkuZmlsbCA9IEYoQVpVTCkKICAgIHdzLmNlbGwocm93PXIyLCBjb2x1bW49OCkubnVtYmVyX2Zvcm1hdCA9ICIjLCMjMC4wMCIKICAgIHdzLmNlbGwocm93PXIyLCBjb2x1bW49OCkuYWxpZ25tZW50ID0gQWwoInJpZ2h0IikKICAgIHdzLmNlbGwocm93PXIyLCBjb2x1bW49OCkuYm9yZGVyID0gQmQoKQogICAgZm9yIGNpIGluIHJhbmdlKDksIDEzKToKICAgICAgICB3cy5jZWxsKHJvdz1yMiwgY29sdW1uPWNpKS5maWxsID0gRihBWlVMKQogICAgICAgIHdzLmNlbGwocm93PXIyLCBjb2x1bW49Y2kpLmJvcmRlciA9IEJkKCkKICAgIHdzLnJvd19kaW1lbnNpb25zW3IyXS5oZWlnaHQgPSAxOAoKIyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKIyBBQkEg4oCUIFJFU1VNTyBNRU5TQUwKIyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKbXMgPSB3Yi5jcmVhdGVfc2hlZXQoIvCfk4UgUmVzdW1vIE1lbnNhbCIpCm1zLnNoZWV0X3ZpZXcuc2hvd0dyaWRMaW5lcyA9IEZhbHNlCmNvbF93c19tID0gWzIsMTQsMTAsMTIsMTIsMTIsMTIsMTIsMTYsMTYsMTRdCmZvciBpLCB3IGluIGVudW1lcmF0ZShjb2xfd3NfbSwgMSk6IG1zLmNvbHVtbl9kaW1lbnNpb25zW2dldF9jb2x1bW5fbGV0dGVyKGkpXS53aWR0aCA9IHcKCnJtID0gdGl0bGVfYmxvY2sobXMsIDEsIDIsIDExLCAiUkVTVU1PIE1FTlNBTCDigJQgUFJFU1RBw4fDg08gREUgQ09OVEFTIiwKICAgICAgICAgICAgICAgICBmIkFuw6FsaXNlIGRlIGNvbmZvcm1pZGFkZSBwb3IgcGVyw61vZG8gIMK3ICBHZXJhZG8gZW06IHtkdFN0cn0iKQptcy5yb3dfZGltZW5zaW9uc1tybV0uaGVpZ2h0ID0gODsgcm0gKz0gMQpoZHIobXMsIHJtLCAyLCBbIk3DilMiLCJUT1RBTCIsIkVOVFJFR1VFUyIsIk5PIFBSQVpPIiwiRk9SQSBQUkFaTyIsIlBFTkRFTlRFUyIsIkFUUkFTQURPUyIsIlZPTC4gVE9UQUwgKFIkKSIsIlZPTC4gRU5UUkVHVUUgKFIkKSIsIkNPTkZPUk1JREFERSAoJSkiXSkKbXMuZnJlZXplX3BhbmVzID0gZiJCe3JtKzF9Ijsgcm0gKz0gMQoKZm9yIG1pLCBtIGluIGVudW1lcmF0ZShtZXNlcyk6CiAgICBhbHQgPSBDSU5aQV9BTFQgaWYgbWklMj09MSBlbHNlIEJSQU5DTwogICAgY29uZiA9IGYie21bJ25wJ10vbWF4KG1bJ2VudCddLDEpKjEwMDouMGZ9JSIgaWYgbVsnZW50J10gZWxzZSAi4oCUIgogICAgY29uZl9vayA9IG1bJ2VudCddIGFuZCBtWyducCddL21heChtWydlbnQnXSwxKT49MC44CiAgICBkYXRhX3Jvdyhtcywgcm0sIDIsCiAgICAgICAgICAgICBbbVsibGJsIl0sbVsidG90YWwiXSxtWyJlbnQiXSxtWyJucCJdLG1bImZwIl0sbVsicGVuZCJdLG1bImF0ciJdLHJvdW5kKG1bInZhbG9yIl0sMikscm91bmQobVsidm9sX2VudCJdLDIpLGNvbmZdLAogICAgICAgICAgICAgYmc9W2FsdF0qMTAsCiAgICAgICAgICAgICBib2xkcz1bRmFsc2UsRmFsc2UsRmFsc2UsRmFsc2UsbVsiZnAiXT4wLEZhbHNlLG1bImF0ciJdPjAsVHJ1ZSxUcnVlLFRydWVdLAogICAgICAgICAgICAgY29sb3JzPVsiMDAwMDAwIiwiMDAwMDAwIixWRVJERSxWRVJERSxWRVJNIGlmIG1bImZwIl0+MCBlbHNlIENJTlpBLCIwMDAwMDAiLFZFUk0gaWYgbVsiYXRyIl0+MCBlbHNlIENJTlpBLCIwMDAwMDAiLFZFUkRFLFZFUkRFIGlmIGNvbmZfb2sgZWxzZSBWRVJNXSwKICAgICAgICAgICAgIGFsaWducz1bImxlZnQiLCJjZW50ZXIiLCJjZW50ZXIiLCJjZW50ZXIiLCJjZW50ZXIiLCJjZW50ZXIiLCJjZW50ZXIiLCJyaWdodCIsInJpZ2h0IiwiY2VudGVyIl0sCiAgICAgICAgICAgICBmbXRzPVtOb25lLE5vbmUsTm9uZSxOb25lLE5vbmUsTm9uZSxOb25lLCIjLCMjMC4wMCIsIiMsIyMwLjAwIixOb25lXSkKICAgIHJtICs9IDEKCmRhdGFfcm93KG1zLCBybSwgMiwKICAgICAgICAgWyJUT1RBTCIsbGVuKGF0aXZvcyksbGVuKGVudHJlZ3VlcyksbGVuKG5vX3ByYXpvKSxsZW4oZm9yYV9wcmF6byksbGVuKHBlbmRlbnRlcyksbGVuKGF0cmFzYWRvcykscm91bmQodm9sX3RvdGFsLDIpLHJvdW5kKHZvbF9lbnQsMiksZiJ7cGN0X3ByYXpvOi4wZn0lIl0sCiAgICAgICAgIGJnPVtBWlVMXSoxMCwgYm9sZHM9W1RydWVdKjEwLCBjb2xvcnM9W0JSQU5DT10qMTAsCiAgICAgICAgIGFsaWducz1bImNlbnRlciJdKjcrWyJyaWdodCIsInJpZ2h0IiwiY2VudGVyIl0sCiAgICAgICAgIGZtdHM9W05vbmVdKjcrWyIjLCMjMC4wMCIsIiMsIyMwLjAwIixOb25lXSkKCiMg4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQCiMgQUJBIOKAlCBQRU5Ew4pOQ0lBUwojIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAphbCA9IHdiLmNyZWF0ZV9zaGVldCgi8J+aqCBQZW5kw6puY2lhcyIpCmFsLnNoZWV0X3ZpZXcuc2hvd0dyaWRMaW5lcyA9IEZhbHNlCmNvbF93c19hID0gWzIsNSwxOCwxNiwxNCwxMiwxMiwxNCwxNF0KZm9yIGksIHcgaW4gZW51bWVyYXRlKGNvbF93c19hLCAxKTogYWwuY29sdW1uX2RpbWVuc2lvbnNbZ2V0X2NvbHVtbl9sZXR0ZXIoaSldLndpZHRoID0gdwoKYWwubWVyZ2VfY2VsbHMoIkIxOkkxIikKYWxbIkIxIl0udmFsdWUgPSAi8J+aqCAgUEVORMOKTkNJQVMgRSBBTEVSVEFTIOKAlCBBw4fDg08gSU1FRElBVEEgTkVDRVNTw4FSSUEiCmFsWyJCMSJdLmZvbnQgPSBGdChUcnVlLCAxNCwgQlJBTkNPKTsgYWxbIkIxIl0uZmlsbCA9IEYoVkVSTSkKYWxbIkIxIl0uYWxpZ25tZW50ID0gQWwoKTsgYWwucm93X2RpbWVuc2lvbnNbMV0uaGVpZ2h0ID0gMjgKCmFsLm1lcmdlX2NlbGxzKCJCMjpJMiIpCmFsWyJCMiJdLnZhbHVlID0gZiJBdHJhc2Fkb3M6IHtsZW4oYXRyYXNhZG9zKX0gIMK3ICBQZW5kZW50ZXM6IHtsZW4ocGVuZGVudGVzKX0gIMK3ICBWYWxvciBlbSByaXNjbzoge2ZtdF9icmwodm9sX3BlbmQpfSAgwrcgIEdlcmFkbyBlbToge2R0U3RyfSIKYWxbIkIyIl0uZm9udCA9IEZ0KEZhbHNlLCA5LCBCUkFOQ08sIFRydWUpOyBhbFsiQjIiXS5maWxsID0gRigiQzAwMDAwIikKYWxbIkIyIl0uYWxpZ25tZW50ID0gQWwoKTsgYWwucm93X2RpbWVuc2lvbnNbMl0uaGVpZ2h0ID0gMTUKCmhkcihhbCwgMywgMiwgWyIiLCJJRCIsIkRlc2NyacOnw6NvIiwiRm9ybmVjZWRvciIsIkNhcnTDo28iLCJEYXRhIFBndG8iLCJQcmF6byA0OGgiLCJTaXR1YcOnw6NvIiwiVmFsb3IgKFIkKSJdKQphbC5mcmVlemVfcGFuZXMgPSAiQjQiOyByYSA9IDQKCnBlbmRlbmNpYXMgPSBzb3J0ZWQoYXRyYXNhZG9zK3BlbmRlbnRlcywga2V5PWxhbWJkYSBwOiBwcmF6bzQ4KHBbImRhdGEiXSkpCmZvciByaSwgcCBpbiBlbnVtZXJhdGUocGVuZGVuY2lhcyk6CiAgICBzID0gZ2V0X3N0YXR1cyhwKQogICAgYmcyID0gVkVSTV9DTCBpZiBzPT0iYXRyYXNhZG8iIGVsc2UgQU1BUl9DTAogICAgY29yID0gVkVSTSBpZiBzPT0iYXRyYXNhZG8iIGVsc2UgQU1BUgogICAgYWwuY2VsbChyb3c9cmEsIGNvbHVtbj0xKS5maWxsID0gRihiZzIpCiAgICB2YWxzID0gWwogICAgICAgIChwWyJpZCJdLCBiZzIsIEZhbHNlLCAiMDAwMDAwIiwgImNlbnRlciIsIE5vbmUpLAogICAgICAgIChwLmdldCgiZGVzYyIsIiIpLCBiZzIsIEZhbHNlLCAiMDAwMDAwIiwgImxlZnQiLCBOb25lKSwKICAgICAgICAocC5nZXQoImZvcm4iLCIiKSwgYmcyLCBUcnVlLCAiMDAwMDAwIiwgImxlZnQiLCBOb25lKSwKICAgICAgICAocC5nZXQoImNhcnRhbyIsIiIpLCBiZzIsIEZhbHNlLCAiMDAwMDAwIiwgImNlbnRlciIsIE5vbmUpLAogICAgICAgIChmbXRfZChwWyJkYXRhIl0pLCBiZzIsIEZhbHNlLCAiMDAwMDAwIiwgImNlbnRlciIsIE5vbmUpLAogICAgICAgIChwcmF6bzQ4KHBbImRhdGEiXSkuc3RyZnRpbWUoIiVkLyVtLyVZIiksIGJnMiwgRmFsc2UsICIwMDAwMDAiLCAiY2VudGVyIiwgTm9uZSksCiAgICAgICAgKFNMQi5nZXQocyxzKSwgYmcyLCBUcnVlLCBjb3IsICJjZW50ZXIiLCBOb25lKSwKICAgICAgICAoZmxvYXQocC5nZXQoInZhbG9yIiwwKSksIGJnMiwgVHJ1ZSwgY29yLCAicmlnaHQiLCAiIywjIzAuMDAiKSwKICAgIF0KICAgIGZvciBjaSwgKHYsIGJnMywgYmQsIGNsLCBhbDMsIGZtKSBpbiBlbnVtZXJhdGUodmFscywgMik6CiAgICAgICAgYyA9IGFsLmNlbGwocm93PXJhLCBjb2x1bW49Y2ksIHZhbHVlPXYpCiAgICAgICAgYy5mb250ID0gRnQoYmQsIDksIGNsKTsgYy5maWxsID0gRihiZzMpCiAgICAgICAgYy5hbGlnbm1lbnQgPSBBbChhbDMpOyBjLmJvcmRlciA9IEJkKCkKICAgICAgICBpZiBmbTogYy5udW1iZXJfZm9ybWF0ID0gZm0KICAgIGFsLnJvd19kaW1lbnNpb25zW3JhXS5oZWlnaHQgPSAxNTsgcmEgKz0gMQoKaWYgbm90IHBlbmRlbmNpYXM6CiAgICBhbC5tZXJnZV9jZWxscyhmIkJ7cmF9Okl7cmF9IikKICAgIGFsW2YiQntyYX0iXS52YWx1ZSA9ICLinIUgIE5lbmh1bWEgcGVuZMOqbmNpYSEgVG9kb3Mgb3MgcGFnYW1lbnRvcyBmb3JhbSBlbnRyZWd1ZXMgbm8gcHJhem8uIgogICAgYWxbZiJCe3JhfSJdLmZvbnQgPSBGdChUcnVlLCAxMSwgVkVSREUpOyBhbFtmIkJ7cmF9Il0uZmlsbCA9IEYoVkVSREVfQ0wpCiAgICBhbFtmIkJ7cmF9Il0uYWxpZ25tZW50ID0gQWwoKTsgYWwucm93X2RpbWVuc2lvbnNbcmFdLmhlaWdodCA9IDI0CmVsc2U6CiAgICBhbC5tZXJnZV9jZWxscyhmIkJ7cmF9Okh7cmF9IikKICAgIGFsW2YiQntyYX0iXS52YWx1ZSA9IGYiVE9UQUwgRU0gUklTQ08gICh7bGVuKHBlbmRlbmNpYXMpfSByZWdpc3Ryb3MpIgogICAgYWxbZiJCe3JhfSJdLmZvbnQgPSBGdChUcnVlLCA5LCBCUkFOQ08pOyBhbFtmIkJ7cmF9Il0uZmlsbCA9IEYoVkVSTSkKICAgIGFsW2YiQntyYX0iXS5hbGlnbm1lbnQgPSBBbCgibGVmdCIpOyBhbFtmIkJ7cmF9Il0uYm9yZGVyID0gQmQoKQogICAgYWwuY2VsbChyb3c9cmEsIGNvbHVtbj05KS52YWx1ZSA9IHZvbF9wZW5kCiAgICBhbC5jZWxsKHJvdz1yYSwgY29sdW1uPTkpLmZvbnQgPSBGdChUcnVlLCA5LCBCUkFOQ08pCiAgICBhbC5jZWxsKHJvdz1yYSwgY29sdW1uPTkpLmZpbGwgPSBGKFZFUk0pCiAgICBhbC5jZWxsKHJvdz1yYSwgY29sdW1uPTkpLm51bWJlcl9mb3JtYXQgPSAiIywjIzAuMDAiCiAgICBhbC5jZWxsKHJvdz1yYSwgY29sdW1uPTkpLmFsaWdubWVudCA9IEFsKCJyaWdodCIpCiAgICBhbC5jZWxsKHJvdz1yYSwgY29sdW1uPTkpLmJvcmRlciA9IEJkKCkKICAgIGFsLnJvd19kaW1lbnNpb25zW3JhXS5oZWlnaHQgPSAxOAoKIyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKIyBBQkEg4oCUIEFVRElUT1JJQQojIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkApocyA9IHdiLmNyZWF0ZV9zaGVldCgi8J+UjSBBdWRpdG9yaWEiKQpocy5zaGVldF92aWV3LnNob3dHcmlkTGluZXMgPSBGYWxzZQpjb2xfd3NfaCA9IFsyLDYsMjAsMTgsMTYsMTgsMjhdCmZvciBpLCB3IGluIGVudW1lcmF0ZShjb2xfd3NfaCwgMSk6IGhzLmNvbHVtbl9kaW1lbnNpb25zW2dldF9jb2x1bW5fbGV0dGVyKGkpXS53aWR0aCA9IHcKCm5fZXZlbnRzID0gc3VtKGxlbihwLmdldCgiaGlzdG9yaWNvIixbXSkpIGZvciBwIGluIHBheW1lbnRzKQpyaCA9IHRpdGxlX2Jsb2NrKGhzLCAxLCAyLCA3LCAiSElTVMOTUklDTyBERSBBVURJVE9SSUEg4oCUIFJFR0lTVFJPIENPTVBMRVRPIiwKICAgICAgICAgICAgICAgICBmIlRvdGFsIGRlIGV2ZW50b3M6IHtuX2V2ZW50c30gIMK3ICBHZXJhZG8gZW06IHtkdFN0cn0gIMK3ICBVc28gcmVzdHJpdG8iKQpocy5yb3dfZGltZW5zaW9uc1tyaF0uaGVpZ2h0ID0gODsgcmggKz0gMQpoZHIoaHMsIHJoLCAyLCBbIklEIiwiRGVzY3Jpw6fDo28iLCJGb3JuZWNlZG9yIiwiVGlwbyBFdmVudG8iLCJEYXRhL0hvcmEiLCJNb3Rpdm8gLyBPYnNlcnZhw6fDo28iXSkKaHMuZnJlZXplX3BhbmVzID0gZiJCe3JoKzF9IjsgcmggKz0gMQoKVElQT19MQkwyID0geyJjcmlhZG8iOiLinIUgQ3JpYWRvIiwiZWRpdCI6IuKcj++4jyBFZGl0YWRvIiwiZW50cmVndWUiOiLwn5OmIEVudHJlZ3VlIiwiY2FuY2VsYWRvIjoi4p2MIENhbmNlbGFkbyJ9ClRJUE9fQkcyICA9IHsiY3JpYWRvIjpWRVJERV9DTCwiZWRpdCI6QU1BUl9DTCwiZW50cmVndWUiOlZFUkRFX0NMLCJjYW5jZWxhZG8iOlZFUk1fQ0x9ClRJUE9fQ0wyICA9IHsiY3JpYWRvIjpWRVJERSwiZWRpdCI6QU1BUiwiZW50cmVndWUiOlZFUkRFLCJjYW5jZWxhZG8iOlZFUk19CgphbGxfaGlzdCA9IFtdCmZvciBwIGluIHBheW1lbnRzOgogICAgZm9yIGggaW4gcC5nZXQoImhpc3RvcmljbyIsW10pOgogICAgICAgIGFsbF9oaXN0LmFwcGVuZCgoaC5nZXQoInF1YW5kbyIsIiIpLCBwLCBoKSkKYWxsX2hpc3Quc29ydChrZXk9bGFtYmRhIHg6IHhbMF0sIHJldmVyc2U9VHJ1ZSkKCmZvciByaSwgKHF1YW5kbywgcCwgaCkgaW4gZW51bWVyYXRlKGFsbF9oaXN0KToKICAgIHRpcG8gPSBoLmdldCgidGlwbyIsIiIpCiAgICBiZzMgPSBUSVBPX0JHMi5nZXQodGlwbywgQ0lOWkFfQ0wpCiAgICBhbHQgPSBDSU5aQV9BTFQgaWYgcmklMj09MSBlbHNlIEJSQU5DTwogICAgdHJ5OiBkdF9zdHIgPSBkYXRldGltZS5mcm9taXNvZm9ybWF0KHF1YW5kby5yZXBsYWNlKCJaIiwiKzAwOjAwIikpLnN0cmZ0aW1lKCIlZC8lbS8lWSAgJUg6JU0iKQogICAgZXhjZXB0OiBkdF9zdHIgPSBxdWFuZG8KICAgIHZhbHMgPSBbCiAgICAgICAgKHBbImlkIl0sIGFsdCwgRmFsc2UsICIwMDAwMDAiLCAiY2VudGVyIiksCiAgICAgICAgKHAuZ2V0KCJkZXNjIiwiIiksIGFsdCwgRmFsc2UsICIwMDAwMDAiLCAibGVmdCIpLAogICAgICAgIChwLmdldCgiZm9ybiIsIiIpLCBhbHQsIEZhbHNlLCAiMDAwMDAwIiwgImxlZnQiKSwKICAgICAgICAoVElQT19MQkwyLmdldCh0aXBvLHRpcG8pLCBiZzMsIFRydWUsIFRJUE9fQ0wyLmdldCh0aXBvLENJTlpBKSwgImNlbnRlciIpLAogICAgICAgIChkdF9zdHIsIGFsdCwgRmFsc2UsICIwMDAwMDAiLCAiY2VudGVyIiksCiAgICAgICAgKGguZ2V0KCJyYXphbyIsIiIpIG9yICLigJQiLCBhbHQsIEZhbHNlLCAiMDAwMDAwIiwgImxlZnQiKSwKICAgIF0KICAgIGZvciBjaSwgKHYsIGJnNCwgYmQsIGNsLCBhbDQpIGluIGVudW1lcmF0ZSh2YWxzLCAyKToKICAgICAgICBjID0gaHMuY2VsbChyb3c9cmgsIGNvbHVtbj1jaSwgdmFsdWU9dikKICAgICAgICBjLmZvbnQgPSBGdChiZCwgOSwgY2wpOyBjLmZpbGwgPSBGKGJnNCkKICAgICAgICBjLmFsaWdubWVudCA9IEFsKGFsNCwgd3JhcD0oY2k9PTcpKTsgYy5ib3JkZXIgPSBCZCgpCiAgICBocy5yb3dfZGltZW5zaW9uc1tyaF0uaGVpZ2h0ID0gMTU7IHJoICs9IDEKCiMg4pSA4pSAIFNhbHZhciDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAKb3V0ID0gIi90bXAvcmVsYXRvcmlvX2V4ZWMueGxzeCIKd2Iuc2F2ZShvdXQpCnByaW50KGYiT0s6e291dH0iKQo=';
+
+    fetch('/api/gerar-excel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentsJson, scriptB64 })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+      const binary = atob(data.xlsB64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+      a.href = url; a.download = `Prestacao_Contas_Executivo_${hoje}.xlsx`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      if(btn){btn.innerHTML='📊 Baixar Excel — Apresentação de Diretoria';btn.disabled=false;}
+    })
+    .catch(e => {
+      console.error(e);
+      alert('Erro ao gerar Excel: ' + e.message);
+      if(btn){btn.innerHTML='📊 Baixar Excel — Apresentação de Diretoria';btn.disabled=false;}
+    });
+  }
+
+
+
+  // ── IMPORTAÇÃO POR IMAGEM ────────────────────────────────────────────
+  let _bancoSelecionado = null;
+  let _transacoesLidas = [];
+
+  function selecionarBanco(banco) {
+    _bancoSelecionado = banco;
+    document.getElementById('btn-banco-bb').style.border = banco==='bb' ? '2px solid var(--blue)' : '2px solid var(--border)';
+    document.getElementById('btn-banco-bb').style.background = banco==='bb' ? 'var(--blue-light)' : '';
+    document.getElementById('btn-banco-itau').style.border = banco==='itau' ? '2px solid var(--blue)' : '2px solid var(--border)';
+    document.getElementById('btn-banco-itau').style.background = banco==='itau' ? 'var(--blue-light)' : '';
+    document.getElementById('campo-data-itau').style.display = banco==='itau' ? 'block' : 'none';
+    document.getElementById('area-upload').style.display = 'block';
+  }
+
+  function previewImagem(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('img-preview').src = e.target.result;
+      document.getElementById('preview-img').style.display = 'block';
+      document.getElementById('nome-arquivo').textContent = file.name;
+      document.getElementById('btn-processar-img').style.display = 'block';
+      document.getElementById('btn-confirmar-import').style.display = 'none';
+      document.getElementById('resultado-leitura').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function processarImagem() {
+    if (!_bancoSelecionado) { alert('Selecione o banco primeiro.'); return; }
+    if (_bancoSelecionado === 'itau' && !document.getElementById('data-itau-import').value) {
+      alert('Informe a data das transações para o Itaú.'); return; }
+    const input = document.getElementById('input-img-extrato');
+    if (!input.files || !input.files[0]) { alert('Selecione uma imagem.'); return; }
+
+    const btn = document.getElementById('btn-processar-img');
+    btn.textContent = '⏳ Lendo...'; btn.disabled = true;
+
+    try {
+      const file = input.files[0];
+      const base64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = e => res(e.target.result.split(',')[1]);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
+
+      const banco = _bancoSelecionado === 'bb' ? 'Banco do Brasil' : 'Itaú';
+      const cartao = _bancoSelecionado === 'bb' ? 'Cartão final 2669' : 'Cartão final 2972';
+      const dataItau = document.getElementById('data-itau-import').value;
+      const anoAtual = new Date().getFullYear();
+
+      const prompt = _bancoSelecionado === 'bb'
+        ? `Esta é uma imagem do extrato do Banco do Brasil. Extraia APENAS as transações de compra/débito visíveis.
+Para cada transação retorne um JSON array com objetos: {"desc": "nome do estabelecimento", "valor": numero_sem_formatacao, "data": "YYYY-MM-DD", "cartao": "${cartao}"}
+O dia aparece no lado esquerdo de cada transação. O mês está no cabeçalho (ex: MAIO = 05). O ano é ${anoAtual}.
+Ignore transações de crédito, estornos, pagamentos de fatura.
+Retorne APENAS o JSON array puro, sem markdown, sem explicação.`
+        : `Esta é uma imagem do extrato do Itaú. Extraia APENAS as transações de compra visíveis (cartão físico).
+A data de todas as transações desta tela é ${dataItau} (${anoAtual}).
+Para cada transação retorne um JSON array com objetos: {"desc": "nome do estabelecimento", "valor": numero_sem_formatacao, "data": "${dataItau}", "cartao": "${cartao}"}
+Ignore transações de crédito, estornos.
+Retorne APENAS o JSON array puro, sem markdown, sem explicação.`;
+
+      const resp = await fetch('/api/ler-extrato', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64, mediaType: file.type, prompt })
+      });
+      if (!resp.ok) throw new Error(`Erro ${resp.status}: ${await resp.text()}`);
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+      const text = data.text || '';
+      const clean = text.replace(/```json|```/g, '').trim();
+      _transacoesLidas = JSON.parse(clean);
+
+      if (!Array.isArray(_transacoesLidas) || !_transacoesLidas.length) {
+        throw new Error('Nenhuma transação encontrada na imagem.');
+      }
+
+      // Show results
+      const lista = document.getElementById('lista-transacoes');
+      lista.innerHTML = _transacoesLidas.map((t, i) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:${i%2?'#f9fafb':'#fff'};border-radius:6px;margin-bottom:4px;gap:8px;">
+          <div>
+            <div style="font-size:12px;font-weight:600;color:#111827;">${t.desc}</div>
+            <div style="font-size:11px;color:#6b7280;">${t.data ? new Date(t.data+'T00:00:00').toLocaleDateString('pt-BR') : '—'} · ${t.cartao}</div>
+          </div>
+          <div style="font-size:13px;font-weight:700;color:#111827;white-space:nowrap;">R$ ${Number(t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+        </div>`).join('');
+
+      const volTotal = _transacoesLidas.reduce((a,t) => a+Number(t.valor), 0);
+      document.getElementById('resumo-leitura').textContent =
+        `${_transacoesLidas.length} transação(ões) · Total: R$ ${volTotal.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+      document.getElementById('resultado-leitura').style.display = 'block';
+      document.getElementById('btn-confirmar-import').style.display = 'block';
+      btn.textContent = '🔍 Ler novamente'; btn.disabled = false;
+
+    } catch(e) {
+      console.error(e);
+      alert('Erro ao ler imagem: ' + e.message);
+      btn.textContent = '🔍 Ler extrato'; btn.disabled = false;
+    }
+  }
+
+  // Verifica duplicatas: mesma data + mesmo valor + fornecedor similar
+  function verificarDuplicata(t) {
+    return (window._payments || []).filter(p => {
+      if (p.data !== t.data) return false;
+      if (Math.abs(Number(p.valor) - Number(t.valor)) > 0.01) return false;
+      const descNova = (t.desc || '').toLowerCase().trim();
+      const descExist = (p.forn || p.desc || '').toLowerCase().trim();
+      // Considera duplicata se as primeiras 6 letras forem iguais ou valor+data exatos
+      return descNova.substring(0,6) === descExist.substring(0,6) || 
+             (descNova === descExist);
+    });
+  }
+
+  async function confirmarImportacaoImagem() {
+    if (!_transacoesLidas.length) return;
+    const btn = document.getElementById('btn-confirmar-import');
+
+    // ── Verificar duplicatas antes de importar ──
+    const duplicatas = [];
+    const semDuplicata = [];
+
+    _transacoesLidas.forEach((t, idx) => {
+      const found = verificarDuplicata(t);
+      if (found.length > 0) {
+        duplicatas.push({ t, idx, existentes: found });
+      } else {
+        semDuplicata.push(t);
+      }
+    });
+
+    // Se há duplicatas, mostrar aviso e pedir confirmação por item
+    if (duplicatas.length > 0) {
+      const lista = duplicatas.map(d => {
+        const ex = d.existentes[0];
+        return `• ${d.t.desc} — R$ ${Number(d.t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})} (${d.t.data ? new Date(d.t.data+'T00:00:00').toLocaleDateString('pt-BR') : '—'})\n  Já existe: ${ex.forn} — R$ ${Number(ex.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})} (${new Date(ex.data+'T00:00:00').toLocaleDateString('pt-BR')})`;
+      }).join('\n\n');
+
+      const msg = `⚠️ ${duplicatas.length} transação(ões) parecem já estar lançadas:\n\n${lista}\n\nDeseja importar mesmo assim (incluindo as duplicatas)?`;
+      const incluirDuplicatas = window.confirm(msg);
+
+      if (!incluirDuplicatas) {
+        // Importar apenas as sem duplicata
+        if (semDuplicata.length === 0) {
+          alert('Nenhuma transação nova para importar. Operação cancelada.');
+          return;
+        }
+        const ok = window.confirm(`Importar apenas as ${semDuplicata.length} transação(ões) sem duplicata?`);
+        if (!ok) return;
+        _transacoesLidas = semDuplicata;
+      }
+      // Se confirmou incluir duplicatas, mantém todas (_transacoesLidas original)
+    }
+
+    btn.textContent = '⏳ Importando...'; btn.disabled = true;
+    try {
+      const now = new Date().toISOString();
+      let maxId = (window._payments || []).reduce((a,p) => Math.max(a, Number(p.id)), 0);
+      const banco = _bancoSelecionado === 'bb' ? 'Banco do Brasil' : 'Itaú';
+      const novos = _transacoesLidas.map(t => ({
+        id: ++maxId,
+        data: t.data,
+        desc: t.desc,
+        forn: t.desc,
+        valor: Number(t.valor),
+        cartao: t.cartao,
+        status: 'pendente',
+        entregue: null,
+        historico: [{ tipo:'criado', quando:now, razao:`Importado via imagem (${banco})`, snapshot:{} }]
+      }));
+      window._payments = [...(window._payments || []), ...novos];
+      window._nextId = maxId + 1;
+      // Save com timeout de 10 segundos
+      const savePromise = save();
+      const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout ao salvar')), 10000));
+      await Promise.race([savePromise, timeoutPromise]);
+      render(); renderHist(); renderRel();
+      closeAllDrawers();
+      resetImportImg();
+      alert(`✅ ${novos.length} transação(ões) importada(s) com sucesso!`);
+    } catch(e) {
+      console.error(e);
+      // Mesmo com erro no save, renderiza o que foi adicionado localmente
+      render(); renderHist(); renderRel();
+      closeAllDrawers();
+      resetImportImg();
+      alert(`⚠️ Importado localmente mas pode não ter sincronizado: ${e.message}. Recarregue a página para verificar.`);
+    }
+  }
+
+  function resetImportImg() {
+    _bancoSelecionado = null;
+    _transacoesLidas = [];
+    ['btn-banco-bb','btn-banco-itau'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el){el.style.border='2px solid var(--border)';el.style.background='';}
+    });
+    const inp = document.getElementById('input-img-extrato');
+    if(inp) inp.value = '';
+    ['campo-data-itau','preview-img','resultado-leitura'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.style.display='none';
+    });
+    ['btn-processar-img','btn-confirmar-import','area-upload'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.style.display='none';
+    });
+    const di = document.getElementById('data-itau-import');
+    if(di) di.value = '';
+  }
+  // ─────────────────────────────────────────────────────────────────────
+  // ── INIT ──
+  document.getElementById('n-data').value = todayISO();
+  updateNewPrazo();
+  setSyncState(false);
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script>
+
+<!-- DRAWER: IMPORTAR POR IMAGEM -->
+<div class="drawer" id="drawer-import-img">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title">Importar extrato por imagem</div>
+    <div class="drawer-sub">Tire um print do app do banco e importe automaticamente</div>
+  </div>
+  <div class="drawer-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <button onclick="selecionarBanco('bb')" id="btn-banco-bb"
+        class="btn" style="padding:14px 8px;border-radius:10px;font-size:13px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:6px;border:2px solid var(--border);">
+        <span style="font-size:24px;">🏦</span>
+        Banco do Brasil
+        <span style="font-size:10px;font-weight:400;color:var(--text-secondary);">Cartão final 2669</span>
+      </button>
+      <button onclick="selecionarBanco('itau')" id="btn-banco-itau"
+        class="btn" style="padding:14px 8px;border-radius:10px;font-size:13px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:6px;border:2px solid var(--border);">
+        <span style="font-size:24px;">🏛️</span>
+        Itaú
+        <span style="font-size:10px;font-weight:400;color:var(--text-secondary);">Cartão final 2972</span>
+      </button>
+    </div>
+
+    <div id="campo-data-itau" style="display:none;margin-bottom:14px;">
+      <div style="background:var(--yellow-light);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:var(--yellow);">
+        ⚠️ O Itaú não mostra a data em todas as telas. Informe a data das transações do print.
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Data das transações *</label>
+        <input class="form-control" id="data-itau-import" type="date"/>
+      </div>
+    </div>
+
+    <div id="area-upload" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">Selecione o print do extrato</label>
+        <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px dashed var(--border);border-radius:10px;padding:24px;cursor:pointer;background:var(--gray-light);gap:8px;" id="label-upload">
+          <span style="font-size:32px;">📱</span>
+          <span style="font-size:13px;font-weight:500;color:var(--text);">Toque para selecionar o print</span>
+          <span style="font-size:11px;color:var(--text-secondary);">JPG, PNG ou screenshot</span>
+          <input type="file" id="input-img-extrato" accept="image/*" style="display:none;" onchange="previewImagem(this)"/>
+        </label>
+        <div id="preview-img" style="display:none;margin-top:10px;text-align:center;">
+          <img id="img-preview" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border);"/>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;" id="nome-arquivo"></div>
+        </div>
+      </div>
+
+      <div id="resultado-leitura" style="display:none;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text);">Transações encontradas:</div>
+        <div id="lista-transacoes" style="max-height:250px;overflow-y:auto;"></div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;" id="resumo-leitura"></div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-footer" id="footer-import-img">
+    <button class="btn btn-ghost" onclick="closeAllDrawers();resetImportImg()">Cancelar</button>
+    <button class="btn btn-primary" id="btn-processar-img" onclick="processarImagem()" style="display:none;">
+      🔍 Ler extrato
+    </button>
+    <button class="btn btn-success" id="btn-confirmar-import" onclick="confirmarImportacaoImagem()" style="display:none;">
+      ✅ Importar todos
+    </button>
+  </div>
+</div>
+</body>
+</html>
