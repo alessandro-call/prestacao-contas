@@ -538,20 +538,17 @@
     const data = document.getElementById('n-data').value;
     if (!desc || !forn || isNaN(val) || !cartao || !data) { alert('Preencha todos os campos obrigatórios.'); return; }
 
-    // ── Detecção de duplicatas ──
+    // ── Detecção de duplicatas (mesmo valor + mesma data, independente do nome do fornecedor) ──
     const duplicatas = (window._payments||[]).filter(p => {
       if (p.status === 'cancelado') return false;
       const mesmaData = p.data === data;
       const mesmoValor = Math.abs(Number(p.valor) - val) < 0.01;
-      const fornNovo = forn.toLowerCase().trim();
-      const fornExist = (p.forn||'').toLowerCase().trim();
-      const similar = fornNovo === fornExist || (fornNovo.length >= 4 && fornExist.includes(fornNovo.substring(0,4)));
-      return mesmaData && mesmoValor && similar;
+      return mesmaData && mesmoValor;
     });
     if (duplicatas.length > 0) {
-      const d = duplicatas[0];
       const sLbl = {entregue:'✅ Entregue',atrasado:'🔴 Atrasado',pendente:'🕐 Pendente',cancelado:'❌ Cancelado'};
-      const msg = `⚠️ Possível duplicata detectada!\n\nJá existe um registro semelhante:\n• Fornecedor: ${d.forn}\n• Valor: ${fmtM(d.valor)}\n• Data: ${fmtD(d.data)}\n• Situação: ${sLbl[getStatus(d)]||getStatus(d)}\n\nDeseja incluir mesmo assim?`;
+      const lista = duplicatas.map(d => `• ${d.forn} — ${fmtM(d.valor)} · ${fmtD(d.data)} · ${sLbl[getStatus(d)]||getStatus(d)}`).join('\n');
+      const msg = `⚠️ Este valor já está lançado no app!\n\nJá existe ${duplicatas.length} registro(s) com o mesmo valor nesta data (o nome do fornecedor pode estar diferente):\n\n${lista}\n\nNovo: ${forn} — ${fmtM(val)} · ${fmtD(data)}\n\nDeseja adicionar mesmo assim?`;
       if (!window.confirm(msg)) return;
     }
     const now = new Date().toISOString();
@@ -1527,16 +1524,13 @@ Retorne APENAS o JSON array puro, sem markdown, sem explicação.`;
     }
   }
 
-  // Verifica duplicatas: mesma data + mesmo valor + fornecedor similar
+  // Verifica duplicatas: mesmo valor + mesma data (ignora o nome do fornecedor,
+  // que pode vir diferente entre extrato, comprovante e o que já está lançado)
   function verificarDuplicata(t) {
     return (window._payments || []).filter(p => {
+      if (p.status === 'cancelado') return false;
       if (p.data !== t.data) return false;
-      if (Math.abs(Number(p.valor) - Number(t.valor)) > 0.01) return false;
-      const descNova = (t.desc || '').toLowerCase().trim();
-      const descExist = (p.forn || p.desc || '').toLowerCase().trim();
-      // Considera duplicata se as primeiras 6 letras forem iguais ou valor+data exatos
-      return descNova.substring(0,6) === descExist.substring(0,6) || 
-             (descNova === descExist);
+      return Math.abs(Number(p.valor) - Number(t.valor)) < 0.01;
     });
   }
 
@@ -1557,27 +1551,27 @@ Retorne APENAS o JSON array puro, sem markdown, sem explicação.`;
       }
     });
 
-    // Se há duplicatas, mostrar aviso e pedir confirmação por item
+    // Se há duplicatas, perguntar INDIVIDUALMENTE por cada uma.
+    // As transações sem duplicata entram direto; cada duplicata só entra se confirmada.
     if (duplicatas.length > 0) {
-      const lista = duplicatas.map(d => {
-        const ex = d.existentes[0];
-        return `• ${d.t.desc} — R$ ${Number(d.t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})} (${d.t.data ? new Date(d.t.data+'T00:00:00').toLocaleDateString('pt-BR') : '—'})\n  Já existe: ${ex.forn} — R$ ${Number(ex.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})} (${new Date(ex.data+'T00:00:00').toLocaleDateString('pt-BR')})`;
-      }).join('\n\n');
-
-      const msg = `⚠️ ${duplicatas.length} transação(ões) parecem já estar lançadas:\n\n${lista}\n\nDeseja importar mesmo assim (incluindo as duplicatas)?`;
-      const incluirDuplicatas = window.confirm(msg);
-
-      if (!incluirDuplicatas) {
-        // Importar apenas as sem duplicata
-        if (semDuplicata.length === 0) {
-          alert('Nenhuma transação nova para importar. Operação cancelada.');
-          return;
-        }
-        const ok = window.confirm(`Importar apenas as ${semDuplicata.length} transação(ões) sem duplicata?`);
-        if (!ok) return;
-        _transacoesLidas = semDuplicata;
+      const fmtBR = v => Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2});
+      const fmtDt = d => d ? new Date(d+'T00:00:00').toLocaleDateString('pt-BR') : '—';
+      const aprovadas = [...semDuplicata];
+      let i = 0;
+      for (const d of duplicatas) {
+        i++;
+        const exLinhas = d.existentes.map(ex => `   • ${ex.forn} — R$ ${fmtBR(ex.valor)} (${fmtDt(ex.data)})`).join('\n');
+        const msg = `⚠️ Valor já lançado (${i} de ${duplicatas.length})\n\n`
+          + `Nova transação:\n   • ${d.t.desc} — R$ ${fmtBR(d.t.valor)} (${fmtDt(d.t.data)})\n\n`
+          + `Já existe no app com este mesmo valor e data (o nome pode estar diferente):\n${exLinhas}\n\n`
+          + `Deseja adicionar esta mesmo assim?`;
+        if (window.confirm(msg)) aprovadas.push(d.t);
       }
-      // Se confirmou incluir duplicatas, mantém todas (_transacoesLidas original)
+      if (aprovadas.length === 0) {
+        alert('Nenhuma transação selecionada para importar. Operação cancelada.');
+        return;
+      }
+      _transacoesLidas = aprovadas;
     }
 
     btn.textContent = '⏳ Importando...'; btn.disabled = true;
